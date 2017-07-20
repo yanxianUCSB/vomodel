@@ -16,20 +16,20 @@ Para$polym.num <-
 Para$size.ratio <- c(1, 1, 1, 1, 1)
 Chi <- matrix(rep(0, 25), 5, 5)  # test Chi = 0 first
 
-# # Bjerrum length at 300K ~0.7nm
-# temp <- 300
-# lB <- ke ^ 2 / (kEr * kkB * temp)
-# cat('Bjerrum length', temp, 'K:', lB)
+# Bjerrum length at 300K ~0.7nm
+temp <- 300
+lB <- ke ^ 2 / (kEr * kkB * temp)
+cat('Bjerrum length', temp, 'K:', lB)
 
-# # # Conc vs Phis
-# totl.conc <- seq(10, 5000, 1)
-# nacl.conc <- 50
-# phis <- do.call(rbind, lapply(totl.conc, function(t.conc){
-#     conc <- get.conc(t.conc, nacl.conc)
-#     phis <- get.phi(conc, Para)
-#     return(phis)
-# }))
-# plot(totl.conc, phis[, 1])
+# # Conc vs Phis
+totl.conc <- seq(10, 5000, 1)
+nacl.conc <- 50
+phis <- do.call(rbind, lapply(totl.conc, function(t.conc){
+    conc <- get.conc(t.conc, nacl.conc)
+    phis <- get.phi(conc, Para)
+    return(phis)
+}))
+plot(totl.conc, phis[, 1], xlab = 'tot.conc', ylab = expression(phi ~ 'protein'))
 
 # # Entropy vs Conc
 # entropy <- sapply(totl.conc, function(t.conc){
@@ -60,8 +60,8 @@ Chi <- matrix(rep(0, 25), 5, 5)  # test Chi = 0 first
 
 # free energy landscape at temperature and concentration
 temps <- seq(200, 400, 1)
-tot.concs <- seq(100, 6000, 100)
-salt.concs <- c(1, 10000)
+tot.concs <- seq(1, 6, 0.1)
+salt.concs <- c(0.01, 2)
 ds <-
     get.free.energy_(
         temps = temps,
