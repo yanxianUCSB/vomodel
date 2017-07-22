@@ -201,16 +201,26 @@ critical.point <- function(alpha, sigma, Chi, temp,
          temp=temp, polymer.num = polymer.num, size.ratio = size.ratio)
   }
 
+# binodal.curve.fun <- function(s, y, interval) {
+#   # function for binodal.curve()
+#   # s.t. f - ax -b = 0, f' - a = 0
+#   a <- s[1]
+#   b <- s[2]
+#   x1 <- s[3]
+#   x2 <- s[4]
+#   g <- function(x) spline(interval, y + a * interval + b, xout = x)$y
+#   dg <- function(x) sapply(x, function(x) grad(g, x))
+#   # return(sum(abs(dg(c(x1, x2)))) + sum(abs(g(c(x1, x2)))))
+#   return(c(g(x1), g(x2), dg(x1), dg(x2)))
+# }
 binodal.curve.fun <- function(s, y, interval) {
-  # function for binodal.curve()
-  # s.t. f - ax -b = 0, f' - a = 0
-  a <- s[1]
-  b <- s[2]
-  x1 <- s[3]
-  x2 <- s[4]
-  g <- function(x) spline(interval, y + a * interval + b, xout = x)$y
-  dg <- function(x) grad(g, x)
-  return(sum(dg(c(x1, x2)) ^ 2) + sum(g(c(x1, x2)) ^ 2))
+  x1 <- s[1]
+  x2 <- s[2]
+  g <- function(x) spline(interval, y, xout = x)$y
+  dg <- function(x) sapply(x, function(x) grad(g, x))
+  a <- (g(x1) - g(x2)) / (x1 - x2)
+  f <- (a - dg(x1)) ^ 2 + (a - dg(x2)) ^ 2
+  return(f)
 }
 binodal.curve <- function(phi.polymer.seq, phi.salt.seq, ...) {
   # generate binodal curve
@@ -218,10 +228,16 @@ binodal.curve <- function(phi.polymer.seq, phi.salt.seq, ...) {
   # range of phi.salt = seq(0, critical.salt)
   
   # search binodal point return c(phi.polymer, phi.salt)
-  optim(par = c(-1, 0, 0.002, 0.15), fn = binodal.curve.fun, 
-        y = free.energy.f(x = phi.polymer.seq,
-                          phi.salt = 0.12,
-                          ))
+  y <- sapply(phi.polymer.seq, function(x) free.energy.f(x, phi.salt = 0.001,
+                                             temp = temp,
+                                             alpha = alpha,
+                                             sigma = sigma,
+                                             Chi = 0,
+                                             polymer.num = polymer.num,
+                                             size.ratio = size.ratio))
+  output <- fsolve(x0 = c( 0.02, 0.15), 
+        f = binodal.curve.fun, y = y, interval = phi.polymer.seq, tol = 1e-18)
+  return(output)
 }
 spinodal.curve <-
   function(phi.polymer,

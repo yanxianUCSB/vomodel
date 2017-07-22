@@ -28,6 +28,7 @@ ds <- sapply(phi.polymer, function(x) {
     temp = temp
   )[[1]]
 })
+
 plot(phi.polymer, ds)
 
 ds <- critical.point(alpha = alpha,
