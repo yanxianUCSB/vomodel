@@ -1,7 +1,9 @@
 # test phi
 rm(list = ls())
 source('vomodel.R')
-phi.polymer <- seq(0.001, 0.05, 0.001)
+library(ggplot2)
+library(yxplot)
+phi.polymer <- seq(0.001, 0.4, 0.001)
 phi.salt <- 0.15
 temp <- 300
 polymer.num <- c(1000, 1000, 1, 1, 1)
@@ -30,17 +32,25 @@ phi.salt.crit.get <-
       ddg <- diff(dg) / diff(phi.salt)[-1]
       dddg <- diff(ddg) / diff(phi.salt)[-2:-1]
       dddg.sp.fun <- function(x) {
-        spline(x = phi.salt[-3:-1],
+        y1 <- spline(x = phi.salt[-3:-1],
                y = dddg,
                xout = x)$y
+        y2 <- spline(x = phi.salt[-2:-1],
+               y = ddg,
+               xout = x)$y
+        return(sum(c(y1, y2) ^ 2))
       }
-      root <-
-        uniroot(f = dddg.sp.fun, interval = range(phi.salt[-3:-1]))$root
+      # root <-
+        # uniroot(f = dddg.sp.fun, interval = range(phi.salt[-3:-1]))$root
+      root <- optim(0.1, fn = dddg.sp.fun)
+      # if(abs(root$value) - 1e-5 > 0) root <- NA
       return(root)
     })
   }
 
-g <- yxplot.quick(phi.polymer, phi.salt.crit.get(phi.polymer)) +
+ds <- phi.salt.crit.get(phi.polymer)
+dst <- data.frame(par = unlist(ds['par',]), value = unlist(ds['value',]))
+g <- yxplot.quick(phi.polymer, dst$par) +
   labs(x = 'Polymer Conc [% v.v]',
        y = 'Critical NaCl Conc [% v.v]') 
 ggsave('test.voorn.salt.crit.png', width = 5, height = 5)

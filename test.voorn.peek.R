@@ -1,7 +1,7 @@
 # test phi
 rm(list = ls())
 source('vomodel.R')
-phi.polymer <- seq(0.001, 0.05, 0.0001)
+phi.polymer <- seq(0.001, 0.4, 0.0001)
 phi.salt <- 0.155
 temp <- 300
 polymer.num <- c(1000, 1000, 1, 1, 1)
