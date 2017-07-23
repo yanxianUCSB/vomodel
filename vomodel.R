@@ -16,27 +16,23 @@ k.water.conc  <<- 1000 / 18.01528 * 1000  # water concentration
 
 ## From Phi to free.energy and phase diagram 
 
-Fen <- function(phis, rs, ws) {
-  # units: 1, 1, 1
-  Fen <- sum(phis * log(phis) / (ws * rs))
-}
-
 alpha <- function(temp, size) {
   # units: K, m
   alpha <-
     2 / 3 * sqrt(pi) * ((ke ^ 2 / (kEr * kkB * temp)) / size) ^ (3 / 2)
 }
-
+Fen <- function(phis, rs, ws) {
+  # units: 1, 1, 1
+  Fen <- sum(phis * log(phis) / (ws * rs))
+}
 Fel <- function(alpha, sigma, phi) {
   # units: 1, 1, 1
   Fel <- 0 - alpha * sum(sigma * phi) ^ (1.5)
 }
-
 Fchi <- function(Chi, phi) {
   # units: 1, 1
   Fchi <- sum(Chi * (phi %*% t(phi)))
 }
-
 free.energy <- function(phi.polymer, phi.salt, alpha, sigma, Chi, temp,
                         polymer.num, size.ratio) {
   # free.energy in Spruijt et al's work
@@ -53,51 +49,117 @@ free.energy <- function(phi.polymer, phi.salt, alpha, sigma, Chi, temp,
       (Fen(phi, polymer.num, size.ratio) + Fel(alpha, sigma, phi) + Fchi(Chi, phi))
     return(g)
 }
-
-free.energy.f <- function(x, phi.salt, alpha, sigma, Chi, temp,
-                          polymer.num, size.ratio) {
+# Numeircal Derivative
+free.energy.f <- function(x, phi.salt, temp, ...) {
+  l <- list(...)
   # free energy f
-  free.energy(phi.polymer = x, phi.salt, alpha, sigma, Chi, temp,
-              polymer.num, size.ratio)
+  free.energy(phi.polymer = x, phi.salt, alpha=l$alpha, sigma=l$sigma, Chi=l$Chi, temp,
+              polymer.num=l$polymer.num, size.ratio=l$size.ratio)
 }
-
-free.energy.df <- function(x, phi.salt, alpha, sigma, Chi, temp,
-                           polymer.num, size.ratio) {
+free.energy.df <- function(x, phi.salt, temp, ...) {
   # df / dphi
-  return( grad(free.energy.f, x, 
-               phi.salt = phi.salt, 
-               alpha = alpha, sigma = sigma, Chi = Chi, 
-               temp = temp, polymer.num = polymer.num, size.ratio =size.ratio))
+  return( yx.numdiff(free.energy.f, x, 
+               phi.salt = phi.salt,
+               temp = temp, ...))
 }
-
-free.energy.ddf <- function(x, phi.salt, alpha, sigma, Chi, temp,
-                            polymer.num, size.ratio) {
-  return(grad(free.energy.df, x, 
-              phi.salt = phi.salt, 
-              alpha = alpha, sigma = sigma, Chi = Chi, 
-              temp = temp, polymer.num = polymer.num, size.ratio =size.ratio))
+free.energy.ddf <- function(x, phi.salt, temp, ...) {
+  # ddf / dphi
+  return( yx.numdiff(free.energy.df, x, 
+               phi.salt = phi.salt,
+               temp = temp, ...))
 }
-
-free.energy.dddf <- function(x, phi.salt, alpha, sigma, Chi, temp,
-                             polymer.num, size.ratio) {
-  return(grad(free.energy.ddf, x, 
-              phi.salt = phi.salt, 
-              alpha = alpha, sigma = sigma, Chi = Chi, 
-              temp = temp, polymer.num = polymer.num, size.ratio =size.ratio))
+free.energy.dddf <- function(x, phi.salt, temp, ...) {
+  # dddf / dphi
+  return( yx.numdiff(free.energy.ddf, x, 
+               phi.salt = phi.salt,
+               temp = temp, ...))
 }
-
-free.energy.funs <- function(phi, phi.salt, alpha, sigma, Chi, temp,
-                             polymer.num, size.ratio) {
+free.energy.funs <- function(phi, phi.salt, temp, ...) {
   # f df ddf dddf
-  return(data.frame(phi = phi,
-                    f = sapply(phi, free.energy.f, phi.salt, alpha, sigma, Chi, temp,
-                               polymer.num, size.ratio),
-                    df = sapply(phi, free.energy.df, phi.salt, alpha, sigma, Chi, temp,
-                                polymer.num, size.ratio),
-                    ddf = sapply(phi, free.energy.ddf, phi.salt, alpha, sigma, Chi, temp,
-                                 polymer.num, size.ratio),
-                    dddf = sapply(phi, free.energy.dddf, phi.salt, alpha, sigma, Chi, temp,
-                                  polymer.num, size.ratio)))
+  return(data.frame(
+    phi = phi,
+                    f = sapply(phi, free.energy.f, phi.salt, temp, ...),
+                    df = sapply(phi, free.energy.df, phi.salt, temp, ...),
+                    ddf = sapply(phi, free.energy.ddf, phi.salt, temp, ...),
+                    dddf = sapply(phi, free.energy.dddf, phi.salt, temp, ...)
+    ))
+  }
+
+# Analytical
+pkpq <- function(...){
+  # TODO:// kpq = phi_q / pho_p
+  return(1)
+}
+pS <- function(sigma.p, sigma.q, kpq) {return((sigma.p + sigma.q*kpq) / (1 + kpq))}
+pA <- function(r.p, r.q, kpq) {return( (1/r.p + kpq/r.q) * (1/(1+kpq)) )}
+pB <- function(r.p, r.q, kpq) {
+  return( -log(1+kpq)/r.p/(1+kpq) - kpq*(log(1+kpq)-log(kpq))/(r.q)/(1+kpq) )}
+pp <- function(...){
+  arg <- list(...)
+  out <- list()
+  # out$kpq <- arg$kpq  # //TODO:
+  kpq <- pkpq(...)  # //TODO:
+  out$S <- pS(arg$sigma[1], arg$sigma[2], kpq)
+  out$A <- pA(arg$polymer.num[1], arg$polymer.num[2], kpq)
+  out$B <- pB(arg$polymer.num[1], arg$polymer.num[2], kpq)
+  return(out)
+}
+gibbs <- function(phi.polymer, phi.salt, ...) {
+  # ... = alpha, sigma, polymer.num, kpq
+  arg <- list(...)
+  alpha <- arg$alpha
+  para <- pp(...)
+  return(
+    -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
+      para$A * phi.polymer * log(phi.polymer) +
+      para$B * phi.polymer +
+      phi.salt * log(0.5 * phi.salt) +
+      (1 - phi.polymer - phi.salt) * log(1 - phi.polymer - phi.salt)
+  )
+}
+gibbs.d <- function(phi.polymer, phi.salt, ...) {
+  # ... = alpha, sigma, polymer.num, kpq
+  arg <- list(...)
+  alpha <- arg$alpha
+  para <- pp(...)
+  return(
+    -alpha * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 * para$S +
+      para$A * log(phi.polymer) + para$A +
+      para$B -
+      log(1 - phi.polymer - phi.salt) - 1
+  )
+}
+gibbs.dd <- function(phi.polymer, phi.salt, ...) {
+  # ... = alpha, sigma, polymer.num, kpq
+  arg <- list(...)
+  alpha <- arg$alpha
+  para <- pp(...)
+  return(
+    -alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S ^ 2 +
+      para$A * 1/phi.polymer +
+      1/(1 - phi.polymer - phi.salt)
+  )
+}
+gibbs.ddd <- function(phi.polymer, phi.salt, ...) {
+  # ... = alpha, sigma, polymer.num, kpq
+  arg <- list(...)
+  alpha <- arg$alpha
+  para <- pp(...)
+  return(
+    alpha * 0.375 * (para$S * phi.polymer + phi.salt) ^ (-1.5) * para$S ^ 3 -
+      para$A * 1/phi.polymer^2 +
+      1/(1 - phi.polymer - phi.salt)^2
+  )
+}
+gibbs.funs <- function(phi.polymer, phi.salt, ...){
+  out <- expand.grid(phi.polymer = phi.polymer, phi.salt = phi.salt) %>%
+    mutate(
+      f = gibbs(phi.polymer, phi.salt, ...),
+      df = gibbs.d(phi.polymer, phi.salt, ...),
+      ddf = gibbs.dd(phi.polymer, phi.salt, ...),
+      dddf = gibbs.ddd(phi.polymer, phi.salt, ...)
+    )
+  return(out)
 }
 
 ## From concentration to Phi
@@ -106,13 +168,11 @@ phi <- function(conc, size.ratio, length.water, polym.num) {
   phi <- kNa * conc * polym.num * size.ratio * length.water ^ 3
   return(phi)
 }
-
 get.phi <- function(conc, Para) {
   phis <-
     phi(conc[1:4], Para$size.ratio[1:4], Para$size, Para$polym.num[1:4])
   return(c(phis, 1 - sum(phis)))
 }
-
 get.phis <- function(concs, Para) {
   return((lapply(concs, get.phi, Para)))
 }
@@ -128,7 +188,6 @@ get.free.energy <- function(temp, conc, Chi, Para) {
     k.water.size ^ 3 / (k.vol * kkB * temp) * (Fen + Fel + Fchi)
   return(G)
 }
-
 get.conc <- function(tot.conc, salt.conc, Para) {
   # units: mg/mL, mM
   protein.conc <-
@@ -140,7 +199,6 @@ get.conc <- function(tot.conc, salt.conc, Para) {
     c(protein.conc, rna.conc, salt.conc, salt.conc, k.water.conc)
   return(conc)
 }
-
 get.free.energy_ <-
   function(temps, tot.concs, salt.concs, Chis, Paras) {
     # input: list of subjects
@@ -169,10 +227,13 @@ get.free.energy_ <-
     return(ds)
   }
 
+## math
 normed <- function(x) {
   return((x - x[1]))
 }
-
+yx.numdiff <- function(f, ...) {
+  return(grad(f, ..., method = 'central'))
+}
 
 critical.point.fun <- function(x, alpha, sigma, Chi, temp,
                                polymer.num, size.ratio ) {
@@ -188,35 +249,40 @@ critical.point.fun <- function(x, alpha, sigma, Chi, temp,
                               temp = temp, polymer.num = polymer.num, size.ratio =size.ratio))
   return(sum(output^2))
 }
-
 critical.point <- function(alpha, sigma, Chi, temp,
                            polymer.num, size.ratio) {
     # generate critical points //TODO:
     
     # guess: GOOD LUCK!!!
-  guess <- c(0.02, 0.12)
+  guess.phi.salt <- seq(0.02, 0.15, 1e-3)
+  guess.phi.polymer <- seq(0.0001, 0.1, 1e-3)
+  sp.curve <- spinodal.curve(guess.phi.polymer, guess.phi.salt, 'phi.polymer',
+                             temp, alpha, sigma, 0, polymer.num, size.ratio)
     # call non-linear-equation-set solver, return c(phi.polymer, phi.salt)
   fsolve(f = critical.point.fun, x0 = guess, 
          alpha = alpha, sigma = sigma, Chi = Chi,
          temp=temp, polymer.num = polymer.num, size.ratio = size.ratio)
-  }
+}
 
-# binodal.curve.fun <- function(s, y, interval) {
-#   # function for binodal.curve()
-#   # s.t. f - ax -b = 0, f' - a = 0
-#   a <- s[1]
-#   b <- s[2]
-#   x1 <- s[3]
-#   x2 <- s[4]
-#   g <- function(x) spline(interval, y + a * interval + b, xout = x)$y
-#   dg <- function(x) sapply(x, function(x) grad(g, x))
-#   # return(sum(abs(dg(c(x1, x2)))) + sum(abs(g(c(x1, x2)))))
-#   return(c(g(x1), g(x2), dg(x1), dg(x2)))
-# }
-binodal.curve.fun <- function(s, y, interval) {
-  x1 <- s[1]
-  x2 <- s[2]
-  g <- function(x) spline(interval, y, xout = x)$y
+critical.point.fun_ <- function(phis, ...) {
+  arg <- list(...)
+  return(c(
+    gibbs.dd(phi.polymer = phis[1], phi.salt = phis[2], ...),
+    gibbs.ddd(phi.polymer = phis[1], phi.salt = phis[2], ...)
+  ))
+}
+critical.point_ <- function(...) {
+  # output list of critical points
+  arg <- list(...)
+  guess <- arg$guess
+  out <- fsolve(f = critical.point.fun_,
+                x0 = guess,
+                ...)
+  return(list(phi.polymer = out$x[1], phi.salt = out$x[2]))
+}
+
+binodal.curve.fun <- function(paras, phi.polymer.range, phi.salt, ...) {
+  g <- 1
   dg <- function(x) sapply(x, function(x) grad(g, x))
   a <- (g(x1) - g(x2)) / (x1 - x2)
   f <- (a - dg(x1)) ^ 2 + (a - dg(x2)) ^ 2
@@ -239,6 +305,7 @@ binodal.curve <- function(phi.polymer.seq, phi.salt.seq, ...) {
         f = binodal.curve.fun, y = y, interval = phi.polymer.seq, tol = 1e-18)
   return(output)
 }
+
 spinodal.curve <-
   function(phi.polymer,
            phi.salt,
