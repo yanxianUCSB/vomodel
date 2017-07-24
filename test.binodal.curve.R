@@ -4,25 +4,56 @@ source('vomodel.R')
 library(yxplot)
 library(ggplot2)
 library(rootSolve)
+source('test.peek.para.R')
+phi.salt <- 0.1
+a <- mean(sapply(phi.polymer.seq, gibbs.d, phi.salt, 
+                 temp = temp,
+                 alpha = alpha,
+                 sigma = sigma,
+                 Chi = 0,
+                 polymer.num = polymer.num,
+                 size.ratio = size.ratio
+                 ))
+b <- mean(sapply(phi.polymer.seq, gibbs, phi.salt, temp = temp,
+                 alpha = alpha,
+                 sigma = sigma,
+                 Chi = 0,
+                 polymer.num = polymer.num,
+                 size.ratio = size.ratio)[1:10])
 
-phi.polymer <- seq(0.0001, 0.4, 0.001)
-phi.salt <- seq(0.0001, 0.2, 0.01)
-temp <- 300
-polymer.num <- c(1000, 1000, 1, 1, 1)
-alpha <- 3.655
-sigma <- c(0.44, 0.44, 1, 1, 0)
-size.ratio <- c(1, 1, 1, 1, 1)
+# binodal.curve.fun(c(a, b), 
+#                   phi.salt = phi.salt,
+#                   temp = temp,
+#                   alpha = alpha,
+#                   sigma = sigma,
+#                   Chi = 0,
+#                   polymer.num = polymer.num,
+#                   size.ratio = size.ratio)
 
-y <-  free.energy.funs(phi.polymer, phi.salt = 0.012,
-                                                       temp = temp,
-                                                       alpha = alpha,
-                                                       sigma = sigma,
-                                                       Chi = 0,
-                                                       polymer.num = polymer.num,
-                                                       size.ratio = size.ratio)
-
-p <- binodal.curve(phi.polymer.seq = phi.polymer)
+# 
+# p <- binodal.curve.fun(c(0.01,0.1),
+#                        phi.salt = 0.15,
+#                    temp = temp,
+#                    alpha = alpha,
+#                    sigma = sigma,
+#                    Chi = 0,
+#                    polymer.num = polymer.num,
+#                    size.ratio = size.ratio,
+#                    guess.critical.point = c(phi.polymer=0.01, phi.salt=0.15)
+#                    )
+p <- binodal.curve(phi.polymer.seq,
+                   temp = temp,
+                   alpha = alpha,
+                   sigma = sigma,
+                   Chi = 0,
+                   polymer.num = polymer.num,
+                   size.ratio = size.ratio,
+                   guess.critical.point = c(phi.polymer=0.01, phi.salt=0.15)
+                   )
 print(p)
+par(mfrow = (c(1,2)))
+plot(p[,1])
+plot(p[,2])
 
 plot(y$phi, y$f)
 abline(a = p$par[1], b = p$par[2], col = 'red')

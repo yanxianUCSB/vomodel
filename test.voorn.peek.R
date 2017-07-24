@@ -1,13 +1,7 @@
 # test phi
 rm(list = ls())
 source('vomodel.R')
-phi.polymer <- seq(0.001, 0.4, 0.0001)
-phi.salt <- 0.155
-temp <- 300
-polymer.num <- c(1000, 1000, 1, 1, 1)
-alpha <- 3.655
-sigma <- c(0.44, 0.44, 1, 1, 0)
-size.ratio <- c(1, 1, 1, 1, 1)
+source('test.peek.para.R')
 
 g <- sapply(phi.polymer, function(p.polymer) {
   free.energy(phi.polymer = p.polymer,

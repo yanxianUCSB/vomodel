@@ -12,6 +12,6 @@ sigma <- c(0.44, 0.44, 1, 1, 0)
 size.ratio <- c(1, 1, 1, 1, 1)
 Chi <- 0
 
-ds <- critical.point_(guess = c(phi.polymer = 0.01, phi.salt = 0.15), temp = temp, polymer.num = polymer.num,
+ds <- critical.point_(guess.critical.point = c(phi.polymer = 0.01, phi.salt = 0.15), temp = temp, polymer.num = polymer.num,
                  alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi)
 ds

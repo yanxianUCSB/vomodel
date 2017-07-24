@@ -106,16 +106,17 @@ pp <- function(...){
 }
 gibbs <- function(phi.polymer, phi.salt, ...) {
   # ... = alpha, sigma, polymer.num, kpq
+  # return F/NkT
   arg <- list(...)
   alpha <- arg$alpha
   para <- pp(...)
-  return(
+  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
     -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
       para$A * phi.polymer * log(phi.polymer) +
       para$B * phi.polymer +
       phi.salt * log(0.5 * phi.salt) +
       (1 - phi.polymer - phi.salt) * log(1 - phi.polymer - phi.salt)
-  )
+  ))
 }
 gibbs.d <- function(phi.polymer, phi.salt, ...) {
   # ... = alpha, sigma, polymer.num, kpq
@@ -234,35 +235,38 @@ normed <- function(x) {
 yx.numdiff <- function(f, ...) {
   return(grad(f, ..., method = 'central'))
 }
+yx.nr <- function(f, x, J, ...) {
+  # Newton Raphson method
+  maxiter <- 1E3
+  iter <- 1
+  new.guess <- x  #TODO
+  while(iter < maxiter){
+    iter <- iter + 1
+    guess <- new.guess
+    jacobian <-  J(guess, ...)
+    invjac <- solve(((jacobian)))
+    f1 <- f(guess, ...)
+    if(is.nan(invjac)) {
+      # print('nan invjac')
+      next
+    }
+    print('guess ')
+    new.guess <- guess - 0.1 * invjac %*% f1
+    if (abs(new.guess[1] - guess[1]) < 1e-5 && abs(new.guess[2] - guess[2]) < 1e-5){
+      break
+    }
+    print('guess missed')
+  }
+    if(iter == maxiter) {
+    print('guess passed')
+      return(list(x = c(NA, NA)))
+    } else {
+      print('nr completed')
+      return(list(x = new.guess))
+    }
+  return(list(x = ifelse(iter == maxiter, new.guess, c(NA, NA))))
+}
 
-critical.point.fun <- function(x, alpha, sigma, Chi, temp,
-                               polymer.num, size.ratio ) {
-  # function for critical.point()
-  phi.polymer <- x[1]
-  phi.salt <- x[2]
-  
-  output <- c(free.energy.ddf(x = x[1], phi.salt = x[2], 
-                              alpha = alpha, sigma = sigma, Chi = Chi, 
-                              temp = temp, polymer.num = polymer.num, size.ratio =size.ratio),
-              free.energy.dddf(x = x[1], phi.salt = x[2], 
-                              alpha = alpha, sigma = sigma, Chi = Chi, 
-                              temp = temp, polymer.num = polymer.num, size.ratio =size.ratio))
-  return(sum(output^2))
-}
-critical.point <- function(alpha, sigma, Chi, temp,
-                           polymer.num, size.ratio) {
-    # generate critical points //TODO:
-    
-    # guess: GOOD LUCK!!!
-  guess.phi.salt <- seq(0.02, 0.15, 1e-3)
-  guess.phi.polymer <- seq(0.0001, 0.1, 1e-3)
-  sp.curve <- spinodal.curve(guess.phi.polymer, guess.phi.salt, 'phi.polymer',
-                             temp, alpha, sigma, 0, polymer.num, size.ratio)
-    # call non-linear-equation-set solver, return c(phi.polymer, phi.salt)
-  fsolve(f = critical.point.fun, x0 = guess, 
-         alpha = alpha, sigma = sigma, Chi = Chi,
-         temp=temp, polymer.num = polymer.num, size.ratio = size.ratio)
-}
 
 critical.point.fun_ <- function(phis, ...) {
   arg <- list(...)
@@ -274,36 +278,52 @@ critical.point.fun_ <- function(phis, ...) {
 critical.point_ <- function(...) {
   # output list of critical points
   arg <- list(...)
-  guess <- arg$guess
+  guess <- arg$guess.critical.point
   out <- fsolve(f = critical.point.fun_,
                 x0 = guess,
                 ...)
   return(list(phi.polymer = out$x[1], phi.salt = out$x[2]))
 }
 
-binodal.curve.fun <- function(paras, phi.polymer.range, phi.salt, ...) {
-  g <- 1
-  dg <- function(x) sapply(x, function(x) grad(g, x))
-  a <- (g(x1) - g(x2)) / (x1 - x2)
-  f <- (a - dg(x1)) ^ 2 + (a - dg(x2)) ^ 2
-  return(f)
+binodal.curve.jacobian <- function(x, ...){
+  return(matrix(c(
+    gibbs.dd(x[1], ...),  # dF1/dX1
+    gibbs.dd(x[2], ...),  # dF1/dX2
+    -gibbs.d(x[1], ...) + (x[2]-x[1])*gibbs.dd(x[1], ...) + gibbs.d(x[1], ...),
+    gibbs.d(x[1], ...) - gibbs.d(x[2], ...)
+  ), nrow = 2, ncol = 2))
 }
-binodal.curve <- function(phi.polymer.seq, phi.salt.seq, ...) {
+binodal.curve.fun <- function(x, ...) {
+  return(c(
+    gibbs.d(x[1], ...) - gibbs.d(x[2], ...),
+    (x[2] - x[1]) * gibbs.d(x[1], ...) - (gibbs(x[2], ...) - gibbs(x[1], ...))
+  ))
+}
+binodal.curve <- function(phi.polymer.seq, ...) {
   # generate binodal curve
-  
   # range of phi.salt = seq(0, critical.salt)
-  
+  phi.salt.seq <- seq(1e-15, critical.point_(...)$phi.salt, 1e-3)
   # search binodal point return c(phi.polymer, phi.salt)
-  y <- sapply(phi.polymer.seq, function(x) free.energy.f(x, phi.salt = 0.001,
-                                             temp = temp,
-                                             alpha = alpha,
-                                             sigma = sigma,
-                                             Chi = 0,
-                                             polymer.num = polymer.num,
-                                             size.ratio = size.ratio))
-  output <- fsolve(x0 = c( 0.02, 0.15), 
-        f = binodal.curve.fun, y = y, interval = phi.polymer.seq, tol = 1e-18)
-  return(output)
+  output <- lapply(phi.salt.seq, function(phi.salt) {
+    
+    roots <- yx.nr(f = binodal.curve.fun, x = c(0.001, 0.015), J = binodal.curve.jacobian, 
+                    phi.salt = phi.salt,  ...)
+    return(roots$x)
+  #   # average g' as initial guess
+  #   a <- mean(sapply(phi.polymer.seq, gibbs.d, phi.salt, ...))
+  #   b <- mean(sapply(phi.polymer.seq, gibbs, phi.salt, ...)[1:10])
+  #   tangent.para <- fsolve(binodal.curve.fun,
+  #                          x0 = c(a, b),
+  #                          phi.salt = phi.salt,
+  #                          ...)
+  #   if (tangent.para$fval > 1E10) {
+  #     return(c(x1 = NA, x2 = NA))
+  #   } else {
+  #     xs <- binodal.curve.paras2roots(tangent.para$x, phi.salt = phi.salt, ...)
+  #     return(c(x1 = xs[1], x2 = xs[2]))
+  #   }
+  })
+  return(do.call(rbind, output))
 }
 
 spinodal.curve <-
@@ -376,3 +396,32 @@ spinodal.curve <-
     })
     return(do.call(rbind, root.and.x))
   }
+
+critical.point.fun <- function(x, alpha, sigma, Chi, temp,
+                               polymer.num, size.ratio ) {
+  # function for critical.point()
+  phi.polymer <- x[1]
+  phi.salt <- x[2]
+  
+  output <- c(free.energy.ddf(x = x[1], phi.salt = x[2], 
+                              alpha = alpha, sigma = sigma, Chi = Chi, 
+                              temp = temp, polymer.num = polymer.num, size.ratio =size.ratio),
+              free.energy.dddf(x = x[1], phi.salt = x[2], 
+                              alpha = alpha, sigma = sigma, Chi = Chi, 
+                              temp = temp, polymer.num = polymer.num, size.ratio =size.ratio))
+  return(sum(output^2))
+}
+critical.point <- function(alpha, sigma, Chi, temp,
+                           polymer.num, size.ratio) {
+    # generate critical points //TODO:
+    
+    # guess: GOOD LUCK!!!
+  guess.phi.salt <- seq(0.02, 0.15, 1e-3)
+  guess.phi.polymer <- seq(0.0001, 0.1, 1e-3)
+  sp.curve <- spinodal.curve(guess.phi.polymer, guess.phi.salt, 'phi.polymer',
+                             temp, alpha, sigma, 0, polymer.num, size.ratio)
+    # call non-linear-equation-set solver, return c(phi.polymer, phi.salt)
+  fsolve(f = critical.point.fun, x0 = guess, 
+         alpha = alpha, sigma = sigma, Chi = Chi,
+         temp=temp, polymer.num = polymer.num, size.ratio = size.ratio)
+}

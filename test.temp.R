@@ -11,10 +11,10 @@ sigma <- c(0.44, 0.44, 1, 1, 0)
 size.ratio <- c(1, 1, 1, 1, 1)
 Chi <- 0
 
-# ds <- free.energy.funs(phi.polymer, phi.salt = 0.2, temp = temp, polymer.num = polymer.num,
-# alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi)
+ds <- free.energy.funs(phi.polymer, phi.salt = 0.2, temp = temp, polymer.num = polymer.num,
+alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi)
 # ds <- critical.point()
-# plot(ds)
+plot(ds)
 
 ds <- sapply(phi.polymer, function(x) {
   
