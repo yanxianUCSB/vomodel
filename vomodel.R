@@ -235,30 +235,73 @@ normed <- function(x) {
 yx.numdiff <- function(f, ...) {
   return(grad(f, ..., method = 'central'))
 }
+yx.fsolve <- function (f, x0, J = NULL, maxiter = 100, tol = .Machine$double.eps^(0.5), 
+                       ...) 
+{
+    if (!is.numeric(x0)) 
+        stop("Argument 'x0' must be a numeric vector.")
+    x0 <- c(x0)
+    fun <- match.fun(f)
+    f <- function(x) fun(x, ...)
+    n <- length(x0)
+    m <- length(f(x0))
+    if (!is.null(J)) {
+        Jun <- match.fun(J)
+        J <- function(x) Jun(x, ...)
+    }
+    else {
+        J <- function(x) jacobian(f, x)
+    }
+    if (m == n) {
+        sol = broyden(f, x0, J0 = J(x0), maxiter = maxiter, 
+                      tol = tol)
+        xs <- sol$zero
+        fs <- f(xs)
+    }
+    else {
+        sol <- gaussNewton(x0, f, Jfun = J, maxiter = maxiter, 
+                           tol = tol)
+        xs <- sol$xs
+        fs <- sol$fs
+        if (fs > tol) 
+            warning("Minimum appears not to be a zero -- change starting point.")
+    }
+    return(list(x = xs, fval = fs))
+}
+
 yx.nr <- function(f, x, J, ...) {
   # Newton Raphson method
-  maxiter <- 1E3
+  maxiter <- 1E3  # max iteration
+  epsilon <- 1E-10  # define tolerance
   iter <- 1
   new.guess <- x  #TODO
   while(iter < maxiter){
     iter <- iter + 1
     guess <- new.guess
+    if(DEBUG) print(c('guess', guess))
     jacobian <-  J(guess, ...)
+    if(det(jacobian) < epsilon) {
+        new.guess <- guess + c(1, -1) * (guess[2]-guess[1])/maxiter
+        next
+    }
+    if(DEBUG) print(c('jac', jacobian))
     invjac <- solve(((jacobian)))
+    if(DEBUG) print(c('invjac', invjac))
     f1 <- f(guess, ...)
     if(is.nan(invjac)) {
       # print('nan invjac')
       next
     }
-    print('guess ')
-    new.guess <- guess - 0.1 * invjac %*% f1
+    new.guess <- guess - 1 * invjac %*% f1
+    if(DEBUG) print(c('invjac %*% f1', invjac%*%f1))
     if (abs(new.guess[1] - guess[1]) < 1e-5 && abs(new.guess[2] - guess[2]) < 1e-5){
       break
+    } else {
+        if(DEBUG) print('guess missed')
     }
-    print('guess missed')
   }
     if(iter == maxiter) {
-    print('guess passed')
+    print('maxiter reached')
       return(list(x = c(NA, NA)))
     } else {
       print('nr completed')
@@ -267,7 +310,7 @@ yx.nr <- function(f, x, J, ...) {
   return(list(x = ifelse(iter == maxiter, new.guess, c(NA, NA))))
 }
 
-
+## Critical point
 critical.point.fun_ <- function(phis, ...) {
   arg <- list(...)
   return(c(
@@ -285,10 +328,11 @@ critical.point_ <- function(...) {
   return(list(phi.polymer = out$x[1], phi.salt = out$x[2]))
 }
 
+## Binodal curve
 binodal.curve.jacobian <- function(x, ...){
   return(matrix(c(
     gibbs.dd(x[1], ...),  # dF1/dX1
-    gibbs.dd(x[2], ...),  # dF1/dX2
+    -gibbs.dd(x[2], ...),  # dF1/dX2
     -gibbs.d(x[1], ...) + (x[2]-x[1])*gibbs.dd(x[1], ...) + gibbs.d(x[1], ...),
     gibbs.d(x[1], ...) - gibbs.d(x[2], ...)
   ), nrow = 2, ncol = 2))
@@ -301,31 +345,22 @@ binodal.curve.fun <- function(x, ...) {
 }
 binodal.curve <- function(phi.polymer.seq, ...) {
   # generate binodal curve
+    arg <- list(...)
+    binodal.curve.guess <- c(0.01, 0.2)
+    
   # range of phi.salt = seq(0, critical.salt)
-  phi.salt.seq <- seq(1e-15, critical.point_(...)$phi.salt, 1e-3)
+  phi.salt.seq <- seq(1e-15, critical.point_(...)$phi.salt, 1e-2)
+  
   # search binodal point return c(phi.polymer, phi.salt)
   output <- lapply(phi.salt.seq, function(phi.salt) {
-    
-    roots <- yx.nr(f = binodal.curve.fun, x = c(0.001, 0.015), J = binodal.curve.jacobian, 
+    roots <- yx.fsolve(f = binodal.curve.fun, x0 = binodal.curve.guess, J = binodal.curve.jacobian, 
                     phi.salt = phi.salt,  ...)
     return(roots$x)
-  #   # average g' as initial guess
-  #   a <- mean(sapply(phi.polymer.seq, gibbs.d, phi.salt, ...))
-  #   b <- mean(sapply(phi.polymer.seq, gibbs, phi.salt, ...)[1:10])
-  #   tangent.para <- fsolve(binodal.curve.fun,
-  #                          x0 = c(a, b),
-  #                          phi.salt = phi.salt,
-  #                          ...)
-  #   if (tangent.para$fval > 1E10) {
-  #     return(c(x1 = NA, x2 = NA))
-  #   } else {
-  #     xs <- binodal.curve.paras2roots(tangent.para$x, phi.salt = phi.salt, ...)
-  #     return(c(x1 = xs[1], x2 = xs[2]))
-  #   }
   })
   return(do.call(rbind, output))
 }
 
+## Spinodal curve
 spinodal.curve <-
   function(phi.polymer,
            phi.salt,
@@ -397,6 +432,7 @@ spinodal.curve <-
     return(do.call(rbind, root.and.x))
   }
 
+## Deprecated
 critical.point.fun <- function(x, alpha, sigma, Chi, temp,
                                polymer.num, size.ratio ) {
   # function for critical.point()

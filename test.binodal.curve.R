@@ -4,7 +4,9 @@ source('vomodel.R')
 library(yxplot)
 library(ggplot2)
 library(rootSolve)
+library(pracma)
 source('test.peek.para.R')
+DEBUG <<- T
 phi.salt <- 0.1
 a <- mean(sapply(phi.polymer.seq, gibbs.d, phi.salt, 
                  temp = temp,
