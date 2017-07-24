@@ -88,12 +88,13 @@ free.energy.funs <- function(phi, phi.salt, temp, ...) {
 # Analytical
 pkpq <- function(...){
   # TODO:// kpq = phi_q / pho_p
-  return(1)
+  arg <- list(...)
+  return(arg$size.ratio[2] * arg$sigma[1] / (arg$size.ratio[1]*arg$sigma[2]))
 }
 pS <- function(sigma.p, sigma.q, kpq) {return((sigma.p + sigma.q*kpq) / (1 + kpq))}
 pA <- function(r.p, r.q, kpq) {return( (1/r.p + kpq/r.q) * (1/(1+kpq)) )}
 pB <- function(r.p, r.q, kpq) {
-  return( -log(1+kpq)/r.p/(1+kpq) - kpq*(log(1+kpq)-log(kpq))/(r.q)/(1+kpq) )}
+  return( -log(1+kpq)/(r.p*(1+kpq)) - kpq*(log(1+kpq)-log(kpq))/((r.q)*(1+kpq)) )}
 pp <- function(...){
   arg <- list(...)
   out <- list()
@@ -123,34 +124,34 @@ gibbs.d <- function(phi.polymer, phi.salt, ...) {
   arg <- list(...)
   alpha <- arg$alpha
   para <- pp(...)
-  return(
+  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
     -alpha * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 * para$S +
       para$A * log(phi.polymer) + para$A +
       para$B -
       log(1 - phi.polymer - phi.salt) - 1
-  )
+  ))
 }
 gibbs.dd <- function(phi.polymer, phi.salt, ...) {
   # ... = alpha, sigma, polymer.num, kpq
   arg <- list(...)
   alpha <- arg$alpha
   para <- pp(...)
-  return(
+  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
     -alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S ^ 2 +
       para$A * 1/phi.polymer +
       1/(1 - phi.polymer - phi.salt)
-  )
+  ))
 }
 gibbs.ddd <- function(phi.polymer, phi.salt, ...) {
   # ... = alpha, sigma, polymer.num, kpq
   arg <- list(...)
   alpha <- arg$alpha
   para <- pp(...)
-  return(
+  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
     alpha * 0.375 * (para$S * phi.polymer + phi.salt) ^ (-1.5) * para$S ^ 3 -
       para$A * 1/phi.polymer^2 +
       1/(1 - phi.polymer - phi.salt)^2
-  )
+  ))
 }
 gibbs.funs <- function(phi.polymer, phi.salt, ...){
   out <- expand.grid(phi.polymer = phi.polymer, phi.salt = phi.salt) %>%
@@ -235,9 +236,9 @@ normed <- function(x) {
 yx.numdiff <- function(f, ...) {
   return(grad(f, ..., method = 'central'))
 }
-yx.fsolve <- function (f, x0, J = NULL, maxiter = 100, tol = .Machine$double.eps^(0.5), 
-                       ...) 
-{
+yx.fsolve <- function (f, x, J = NULL, maxiter = 100, tol = .Machine$double.eps^(0.5), 
+                       ...) {
+  x0 <- x
     if (!is.numeric(x0)) 
         stop("Argument 'x0' must be a numeric vector.")
     x0 <- c(x0)
@@ -268,11 +269,8 @@ yx.fsolve <- function (f, x0, J = NULL, maxiter = 100, tol = .Machine$double.eps
     }
     return(list(x = xs, fval = fs))
 }
-
-yx.nr <- function(f, x, J, ...) {
+yx.nr <- function(f, x, J, ..., epsilon = 1E-10, maxiter = 1E3) {
   # Newton Raphson method
-  maxiter <- 1E3  # max iteration
-  epsilon <- 1E-10  # define tolerance
   iter <- 1
   new.guess <- x  #TODO
   while(iter < maxiter){
@@ -280,36 +278,52 @@ yx.nr <- function(f, x, J, ...) {
     guess <- new.guess
     if(DEBUG) print(c('guess', guess))
     jacobian <-  J(guess, ...)
-    if(det(jacobian) < epsilon) {
+    det.jac <- det(jacobian)
+    if(is.na(det.jac) || det(jacobian) < epsilon) {
         new.guess <- guess + c(1, -1) * (guess[2]-guess[1])/maxiter
         next
     }
     if(DEBUG) print(c('jac', jacobian))
-    invjac <- solve(((jacobian)))
+    invjac <- inv(((jacobian)))
     if(DEBUG) print(c('invjac', invjac))
-    f1 <- f(guess, ...)
     if(is.nan(invjac)) {
       # print('nan invjac')
       next
     }
-    new.guess <- guess - 1 * invjac %*% f1
+    f1 <- f(guess, ...)
+    if(DEBUG) print(c(' f1', f1))
+new.guess <- guess - 0.1 * invjac %*% f1
     if(DEBUG) print(c('invjac %*% f1', invjac%*%f1))
-    if (abs(new.guess[1] - guess[1]) < 1e-5 && abs(new.guess[2] - guess[2]) < 1e-5){
+    if (abs(new.guess[1] - guess[1]) < epsilon && abs(new.guess[2] - guess[2]) < epsilon){
       break
     } else {
         if(DEBUG) print('guess missed')
     }
   }
-    if(iter == maxiter) {
+    if(iter >= maxiter) {
     print('maxiter reached')
       return(list(x = c(NA, NA)))
     } else {
       print('nr completed')
       return(list(x = new.guess))
     }
-  return(list(x = ifelse(iter == maxiter, new.guess, c(NA, NA))))
+  return(list(
+    x = ifelse(iter == maxiter, new.guess, c(NA, NA))))
 }
-
+stupid.fsolve <- function(f, x, x.critic, epsilon = 1E-10, ...) {
+  # x[1] --- x.critic 
+  for(x1 in x[which(x < x.critic)]) {
+    # x.critic --- x[2]
+    for(x2 in x[which(x.critic <= x)]) {
+      f.out <- f(x = c(x1, x2), ...) 
+      if( abs(f.out[1]) < epsilon && abs(f.out[2]) < epsilon ) {
+        return(list(x = c(x1, x2), fval = c(epsilon, epsilon)))
+      }
+    }
+  }
+  return(list(x = c(NA, NA), fval = c(1E15, 1E15)))
+}
+  
 ## Critical point
 critical.point.fun_ <- function(phis, ...) {
   arg <- list(...)
@@ -330,11 +344,12 @@ critical.point_ <- function(...) {
 
 ## Binodal curve
 binodal.curve.jacobian <- function(x, ...){
+  # return(jacobian(binodal.curve.fun, x, ...))
   return(matrix(c(
     gibbs.dd(x[1], ...),  # dF1/dX1
+    -gibbs.d(x[1], ...) + (x[2]-x[1])*gibbs.dd(x[1], ...) + gibbs.d(x[1], ...),  # dF2/dX1
     -gibbs.dd(x[2], ...),  # dF1/dX2
-    -gibbs.d(x[1], ...) + (x[2]-x[1])*gibbs.dd(x[1], ...) + gibbs.d(x[1], ...),
-    gibbs.d(x[1], ...) - gibbs.d(x[2], ...)
+    gibbs.d(x[1], ...) - gibbs.d(x[2], ...)  # dF2/dX2
   ), nrow = 2, ncol = 2))
 }
 binodal.curve.fun <- function(x, ...) {
@@ -345,17 +360,36 @@ binodal.curve.fun <- function(x, ...) {
 }
 binodal.curve <- function(phi.polymer.seq, ...) {
   # generate binodal curve
-    arg <- list(...)
-    binodal.curve.guess <- c(0.01, 0.2)
-    
+  arg <- list(...)
+  binodal.curve.guess <- range(phi.polymer.seq)
+  # critical point
+  c.point <- critical.point_(...)
+  if (DEBUG) print(c('critical point', c.point))
   # range of phi.salt = seq(0, critical.salt)
-  phi.salt.seq <- seq(1e-15, critical.point_(...)$phi.salt, 1e-2)
-  
+  phi.salt.seq <- seq(1e-15, c.point$phi.salt, 1e-3)
+  if (DEBUG) phi.salt.seq <- c(0.13)
   # search binodal point return c(phi.polymer, phi.salt)
-  output <- lapply(phi.salt.seq, function(phi.salt) {
-    roots <- yx.fsolve(f = binodal.curve.fun, x0 = binodal.curve.guess, J = binodal.curve.jacobian, 
-                    phi.salt = phi.salt,  ...)
-    return(roots$x)
+  output <- lapply(seq_along(phi.salt.seq), function(i) {
+    phi.salt <- phi.salt.seq[i]
+    # roots <- stupid.fsolve(f = binodal.curve.fun, x = phi.polymer.seq, x.critic = c.point$phi.polymer,
+    #                        phi.salt = phi.salt, ...)
+    roots <-
+      yx.nr(
+        f = binodal.curve.fun,
+        x = binodal.curve.guess,
+        J = binodal.curve.jacobian,
+        phi.salt = phi.salt,
+        ...
+      )
+    return(
+      c(
+        phi.salt = phi.salt,
+        phi.polymer1 = roots$x[1],
+        phi.polymer2 = roots$x[2],
+        f1 = roots$fval[1],
+        f2 = roots$fval[2]
+      )
+    )
   })
   return(do.call(rbind, output))
 }

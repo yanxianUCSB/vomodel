@@ -6,8 +6,7 @@ library(ggplot2)
 library(rootSolve)
 library(pracma)
 source('test.peek.para.R')
-DEBUG <<- T
-phi.salt <- 0.1
+DEBUG <<- F
 a <- mean(sapply(phi.polymer.seq, gibbs.d, phi.salt, 
                  temp = temp,
                  alpha = alpha,
@@ -33,8 +32,9 @@ b <- mean(sapply(phi.polymer.seq, gibbs, phi.salt, temp = temp,
 #                   size.ratio = size.ratio)
 
 # 
-# p <- binodal.curve.fun(c(0.01,0.1),
-#                        phi.salt = 0.15,
+# p <- sapply(seq(0.0001, 0.017, 1e-3), function(phi.salt){
+#   out <- binodal.curve.fun(c(0.01,0.1),
+#                        phi.salt = phi.salt,
 #                    temp = temp,
 #                    alpha = alpha,
 #                    sigma = sigma,
@@ -43,6 +43,9 @@ b <- mean(sapply(phi.polymer.seq, gibbs, phi.salt, temp = temp,
 #                    size.ratio = size.ratio,
 #                    guess.critical.point = c(phi.polymer=0.01, phi.salt=0.15)
 #                    )
+#   return(c(phi.salt = phi.salt, f1 = out[1], f2 = out[2]))
+# })
+
 p <- binodal.curve(phi.polymer.seq,
                    temp = temp,
                    alpha = alpha,
@@ -50,12 +53,15 @@ p <- binodal.curve(phi.polymer.seq,
                    Chi = 0,
                    polymer.num = polymer.num,
                    size.ratio = size.ratio,
-                   guess.critical.point = c(phi.polymer=0.01, phi.salt=0.15)
+                   guess.critical.point = c(phi.polymer=0.01, phi.salt=0.15),
+                   epsilon = 1E-8
                    )
 print(p)
-par(mfrow = (c(1,2)))
-plot(p[,1])
-plot(p[,2])
+head(p)
+str(p)
 
-plot(y$phi, y$f)
-abline(a = p$par[1], b = p$par[2], col = 'red')
+p <- as.data.frame.matrix(p)
+g <- ggplot(p, aes(y = phi.salt)) +
+  geom_point(aes(x = phi.polymer1), col = 'red') +
+  geom_point(aes(x = phi.polymer2), col = 'blue')
+print(g)

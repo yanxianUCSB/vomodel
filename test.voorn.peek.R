@@ -2,7 +2,7 @@
 rm(list = ls())
 source('vomodel.R')
 source('test.peek.para.R')
-
+phi.polymer <- phi.polymer.seq
 g <- sapply(phi.polymer, function(p.polymer) {
   free.energy(phi.polymer = p.polymer,
                  phi.salt = phi.salt,

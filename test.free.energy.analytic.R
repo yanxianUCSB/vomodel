@@ -3,7 +3,7 @@
 
 rm(list = ls())
 source('vomodel.R')
-phi.polymer <- seq(0.01, 0.4, 0.0001)
+phi.polymer <- seq(0.01, 0.4, 0.001)
 phi.salt <- 0.155
 temp <- 300
 polymer.num <- c(1000, 1000, 1, 1, 1)
@@ -16,3 +16,12 @@ ds <- gibbs.funs(phi.polymer, phi.salt = phi.salt, temp = temp, polymer.num = po
                        alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi)
 plot(ds[-2])
 head(ds)
+
+ds2 <- free.energy.funs(phi = phi.polymer, phi.salt = phi.salt, temp = temp, polymer.num = polymer.num,
+                       alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi)
+plot(ds2)
+par(mfrow = c(2,2))
+plot(ds2$f - ds$f)
+plot(ds2$df - ds$df)
+plot(ds2$ddf - ds$ddf)
+plot(ds2$dddf - ds$dddf)
