@@ -1,4 +1,5 @@
 phi.polymer.seq <- c(seq(1E-5, 0.14, 0.001))
+binodal.guess <- c(0.1, 0.1)  # phi.polymer.2, phi.salt
 phi.salt <- 0.150
 temp <- 300
 polymer.num <- c(1000, 1000, 1, 1, 1)

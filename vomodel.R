@@ -7,6 +7,11 @@ k.water.size <<- 0.31E-9  # 0.31nm as a size of a water molecule
 k.vol <<- 120E-9
 k.water.conc  <<- 1000 / 18.01528 * 1000  # water concentration
 
+kkB <<- 1
+ke <<- 1
+kNa <<- 1
+k.vol <<- 1
+k.water.size <<- 300^(1/3)
 # # c(+, -, sp, sn, w)
 # Para <- list()
 # Para$size <- k.water.size
@@ -103,6 +108,10 @@ pp <- function(...){
   out$S <- pS(arg$sigma[1], arg$sigma[2], kpq)
   out$A <- pA(arg$polymer.num[1], arg$polymer.num[2], kpq)
   out$B <- pB(arg$polymer.num[1], arg$polymer.num[2], kpq)
+  # DEBUG
+  out$S <- 0.44
+  out$A <- 0.001
+  out$B <- -0.0006931472
   return(out)
 }
 gibbs <- function(phi.polymer, phi.salt, ...) {
@@ -152,6 +161,28 @@ gibbs.ddd <- function(phi.polymer, phi.salt, ...) {
       para$A * 1/phi.polymer^2 +
       1/(1 - phi.polymer - phi.salt)^2
   ))
+}
+gibbs.pfps <- function(phi.polymer, phi.salt, ...) {
+  # -para.alpha * 1.5 * (para.S * phip + phis) ** 0.5 +
+  # log(0.5 * phis) + 1 +
+  # -log(1 - phip - phis) - 1
+  arg <- list(...)
+  para <- pp(...)
+  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
+    -arg$alpha * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 +
+      log(0.5 * phi.salt) + 1 +
+      -log(1 - phi.polymer - phi.salt) - 1
+  ))
+}
+gibbs.pdfps <- function(phi.polymer, phi.salt, ...) {
+  #         -para.alpha * 0.75 * (para.S * phip + phis) ** (-0.5) * para.S +
+  # 1/(1 - phip - phis)
+  arg <- list(...)
+  para <- pp(...)
+  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
+    -arg$alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S +
+      1/(1 - phi.polymer - phi.salt))
+  )
 }
 gibbs.funs <- function(phi.polymer, phi.salt, ...){
   out <- expand.grid(phi.polymer = phi.polymer, phi.salt = phi.salt) %>%
@@ -276,23 +307,12 @@ yx.nr <- function(f, x, J, ..., epsilon = 1E-10, maxiter = 1E3) {
   while(iter < maxiter){
     iter <- iter + 1
     guess <- new.guess
-    if(DEBUG) print(c('guess', guess))
     jacobian <-  J(guess, ...)
-    det.jac <- det(jacobian)
-    if(is.na(det.jac) || det(jacobian) < epsilon) {
-        new.guess <- guess + c(1, -1) * (guess[2]-guess[1])/maxiter
-        next
-    }
-    if(DEBUG) print(c('jac', jacobian))
     invjac <- inv(((jacobian)))
-    if(DEBUG) print(c('invjac', invjac))
-    if(is.nan(invjac)) {
-      # print('nan invjac')
-      next
-    }
+      # new.guess <- guess + c(1, -1) * (guess[2]-guess[1])/maxiter
     f1 <- f(guess, ...)
     if(DEBUG) print(c(' f1', f1))
-new.guess <- guess - 0.1 * invjac %*% f1
+    new.guess <- guess - 0.1 * invjac %*% f1
     if(DEBUG) print(c('invjac %*% f1', invjac%*%f1))
     if (abs(new.guess[1] - guess[1]) < epsilon && abs(new.guess[2] - guess[2]) < epsilon){
       break
@@ -352,52 +372,54 @@ binodal.curve.jacobian <- function(x, ...){
     gibbs.d(x[1], ...) - gibbs.d(x[2], ...)  # dF2/dX2
   ), nrow = 2, ncol = 2))
 }
-binodal.curve.fun <- function(x, ...) {
-  return(c(
-    gibbs.d(x[1], ...) - gibbs.d(x[2], ...),
-    (x[2] - x[1]) * gibbs.d(x[1], ...) - (gibbs(x[2], ...) - gibbs(x[1], ...))
-  ))
+binodal.curve.jacobian_ <- function(x, phi.polymer.2, ...){
+  phi.polymer.1 <- x[1]
+  phi.salt <- x[2]
+  return(matrix(c(
+    
+    gibbs.dd(phi.polymer.1, phi.salt, ...),
+    
+    gibbs.d(phi.polymer.1, phi.salt, ...) - gibbs.d(phi.polymer.2, phi.salt, ...),
+    
+    gibbs.pdfps(phi.polymer.1, phi.salt, ...) - gibbs.pdfps(phi.polymer.2, phi.salt, ...),
+    
+    (phi.polymer.2 - phi.polymer.1) * gibbs.pdfps(phi.polymer.2, phi.salt, ...) - 
+      (gibbs.pfps(phi.polymer.2, phi.salt, ...) - gibbs.pfps(phi.polymer.1, phi.salt, ...))
+  ), nrow = 2, ncol = 2))
 }
-binodal.curve <- function(phi.polymer.seq, ...) {
+binodal.curve.fun_ <- function(x, phi.polymer.2, ...) {
+  phi.polymer.1 <- x[1]
+  phi.salt <- x[2]
+  return(binodal.curve.fun(x = c(phi.polymer.1, phi.polymer.2), phi.salt = phi.salt, ...))
+}
+binodal.curve_ <- function(...) {
   # generate binodal curve
   arg <- list(...)
-  # binodal.curve.guess <- range(phi.polymer.seq)
-  binodal.curve.guess <- c(1E-5, 0.5)
-  # critical point
+  binodal.guess <- arg$binodal.guess
   c.point <- critical.point_(...)
   if (DEBUG) print(c('critical point', c.point))
-  # range of phi.salt = seq(0, critical.salt)
-  phi.salt.seq <- seq(1e-15, c.point$phi.salt, 1e-2)
-  if (DEBUG) phi.salt.seq <- c(0.13)
+  phi.polymer.2.seq <- c(seq(2e-13, c.point$phi.polymer/1E2, 1e-6), 
+                         seq(c.point$phi.polymer/1E2, c.point$phi.polymer, 1e-4))
   # search binodal point return c(phi.polymer, phi.salt)
-  output <- list()
-  for(i in seq_along(phi.salt.seq)) {
-  # }
-  # output <- lapply(seq_along(phi.salt.seq), function(i) {
-    phi.salt <- phi.salt.seq[i]
+  output <- lapply((phi.polymer.2.seq), function(phi.polymer.2) {
     # roots <- stupid.fsolve(f = binodal.curve.fun, x = phi.polymer.seq, x.critic = c.point$phi.polymer,
     #                        phi.salt = phi.salt, ...)
-    roots <-
-        yx.nr (
-         binodal.curve.fun,
-         binodal.curve.guess,
-        binodal.curve.jacobian,
-        phi.salt = phi.salt,
+    roots <- nleqslv::nleqslv (
+         binodal.guess,
+         binodal.curve.fun_,
+        binodal.curve.jacobian_,
+        phi.polymer.2 = phi.polymer.2,
         ...
       )
     # binodal.curve.guess <- roots$x
-    print(roots)
-    # return(
-    output[[i]] <- c(
-        phi.salt = phi.salt,
-        phi.polymer1 = roots$x[1],
-        phi.polymer2 = roots$x[2],
+    return(c(
+        phi.polymer.1 = roots$x[1],
+        phi.polymer.2 = phi.polymer.2,
+        phi.salt = roots$x[2],
         f1 = roots$fval[1],
         f2 = roots$fval[2]
-      )
-    # )
-  }
-  # )
+      ))
+  })
   return(do.call(rbind, output))
 }
 
@@ -501,4 +523,52 @@ critical.point <- function(alpha, sigma, Chi, temp,
   fsolve(f = critical.point.fun, x0 = guess, 
          alpha = alpha, sigma = sigma, Chi = Chi,
          temp=temp, polymer.num = polymer.num, size.ratio = size.ratio)
+}
+binodal.curve.fun <- function(x, ...) {
+  return(c(
+    gibbs.d(x[1], ...) - gibbs.d(x[2], ...),
+    (x[2] - x[1]) * gibbs.d(x[1], ...) - (gibbs(x[2], ...) - gibbs(x[1], ...))
+  ))
+}
+binodal.curve <- function(phi.polymer.seq, ...) {
+  # generate binodal curve
+  arg <- list(...)
+  # binodal.curve.guess <- range(phi.polymer.seq)
+  binodal.curve.guess <- c(1E-5, 0.5)
+  # critical point
+  c.point <- critical.point_(...)
+  if (DEBUG) print(c('critical point', c.point))
+  # range of phi.salt = seq(0, critical.salt)
+  phi.salt.seq <- seq(1e-15, c.point$phi.salt, 1e-2)
+  if (DEBUG) phi.salt.seq <- c(0.13)
+  # search binodal point return c(phi.polymer, phi.salt)
+  output <- list()
+  for(i in seq_along(phi.salt.seq)) {
+  # }
+  # output <- lapply(seq_along(phi.salt.seq), function(i) {
+    phi.salt <- phi.salt.seq[i]
+    # roots <- stupid.fsolve(f = binodal.curve.fun, x = phi.polymer.seq, x.critic = c.point$phi.polymer,
+    #                        phi.salt = phi.salt, ...)
+    roots <-
+        yx.nr (
+         binodal.curve.fun,
+         binodal.curve.guess,
+        binodal.curve.jacobian,
+        phi.salt = phi.salt,
+        ...
+      )
+    # binodal.curve.guess <- roots$x
+    print(roots)
+    # return(
+    output[[i]] <- c(
+        phi.salt = phi.salt,
+        phi.polymer1 = roots$x[1],
+        phi.polymer2 = roots$x[2],
+        f1 = roots$fval[1],
+        f2 = roots$fval[2]
+      )
+    # )
+  }
+  # )
+  return(do.call(rbind, output))
 }

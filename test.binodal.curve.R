@@ -7,7 +7,7 @@ library(rootSolve)
 library(pracma)
 library(minpack.lm)
 source('test.peek.para.R')
-DEBUG <<- F
+DEBUG <<- T
 a <- mean(sapply(phi.polymer.seq, gibbs.d, phi.salt, 
                  temp = temp,
                  alpha = alpha,
@@ -47,22 +47,25 @@ b <- mean(sapply(phi.polymer.seq, gibbs, phi.salt, temp = temp,
 #   return(c(phi.salt = phi.salt, f1 = out[1], f2 = out[2]))
 # })
 
-p <- binodal.curve(phi.polymer.seq,
+p <- binodal.curve_(
                    temp = temp,
                    alpha = alpha,
                    sigma = sigma,
                    Chi = 0,
                    polymer.num = polymer.num,
                    size.ratio = size.ratio,
+                   epsilon = 1E-8,
                    guess.critical.point = c(phi.polymer=0.01, phi.salt=0.15),
-                   epsilon = 1E-8
+                   binodal.guess = c(0.1, 0.1)
                    )
-print(p)
-head(p)
-str(p)
 
+# 
 p <- as.data.frame.matrix(p)
 g <- ggplot(p, aes(y = phi.salt)) +
-  geom_point(aes(x = phi.polymer1), col = 'red') +
-  geom_point(aes(x = phi.polymer2), col = 'blue')
+  geom_line(aes(x = phi.polymer.1), col = 'red') +
+  geom_line(aes(x = phi.polymer.2), col = 'blue') +
+  labs(x = 'Polymer [phi]',
+       y = 'Salt [phi]')
+g <- theme.title.text.1(g)
 print(g)
+ggsave('test.binodal.curve.png', width = 5, height = 5)
