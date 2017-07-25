@@ -5,6 +5,7 @@ library(yxplot)
 library(ggplot2)
 library(rootSolve)
 library(pracma)
+library(minpack.lm)
 source('test.peek.para.R')
 DEBUG <<- F
 a <- mean(sapply(phi.polymer.seq, gibbs.d, phi.salt, 

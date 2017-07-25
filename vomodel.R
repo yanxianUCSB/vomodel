@@ -361,36 +361,43 @@ binodal.curve.fun <- function(x, ...) {
 binodal.curve <- function(phi.polymer.seq, ...) {
   # generate binodal curve
   arg <- list(...)
-  binodal.curve.guess <- range(phi.polymer.seq)
+  # binodal.curve.guess <- range(phi.polymer.seq)
+  binodal.curve.guess <- c(1E-5, 0.5)
   # critical point
   c.point <- critical.point_(...)
   if (DEBUG) print(c('critical point', c.point))
   # range of phi.salt = seq(0, critical.salt)
-  phi.salt.seq <- seq(1e-15, c.point$phi.salt, 1e-3)
+  phi.salt.seq <- seq(1e-15, c.point$phi.salt, 1e-2)
   if (DEBUG) phi.salt.seq <- c(0.13)
   # search binodal point return c(phi.polymer, phi.salt)
-  output <- lapply(seq_along(phi.salt.seq), function(i) {
+  output <- list()
+  for(i in seq_along(phi.salt.seq)) {
+  # }
+  # output <- lapply(seq_along(phi.salt.seq), function(i) {
     phi.salt <- phi.salt.seq[i]
     # roots <- stupid.fsolve(f = binodal.curve.fun, x = phi.polymer.seq, x.critic = c.point$phi.polymer,
     #                        phi.salt = phi.salt, ...)
     roots <-
-      yx.nr(
-        f = binodal.curve.fun,
-        x = binodal.curve.guess,
-        J = binodal.curve.jacobian,
+        yx.nr (
+         binodal.curve.fun,
+         binodal.curve.guess,
+        binodal.curve.jacobian,
         phi.salt = phi.salt,
         ...
       )
-    return(
-      c(
+    # binodal.curve.guess <- roots$x
+    print(roots)
+    # return(
+    output[[i]] <- c(
         phi.salt = phi.salt,
         phi.polymer1 = roots$x[1],
         phi.polymer2 = roots$x[2],
         f1 = roots$fval[1],
         f2 = roots$fval[2]
       )
-    )
-  })
+    # )
+  }
+  # )
   return(do.call(rbind, output))
 }
 
