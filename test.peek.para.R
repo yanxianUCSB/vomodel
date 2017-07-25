@@ -1,3 +1,10 @@
+# # c(+, -, sp, sn, w)
+# Para <- list()
+# Para$size <- k.water.size
+# Para$charge.den <- c(11/207, 1, 1, 1, 0)
+# Para$polym.num <- c(207, 900E3 / (324 - 18), 1, 1, 1)  # polym.num. REF[Yanxian's Notebook]
+# Para$size.ratio <- c(1, 1, 1, 1, 1)
+
 phi.polymer.seq <- c(seq(1E-5, 0.14, 0.001))
 binodal.guess <- c(0.1, 0.1)  # phi.polymer.2, phi.salt
 phi.salt <- 0.150
