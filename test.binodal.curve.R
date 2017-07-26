@@ -3,9 +3,9 @@ rm(list = ls())
 source('vomodel.R')
 library(yxplot)
 library(ggplot2)
+library(dplyr)
 library(rootSolve)
 library(pracma)
-library(minpack.lm)
 DEBUG <- F
 
 system.properties <- list(
@@ -31,7 +31,7 @@ p2 <- get.binodal.curves(seq(20, 40, 10), 0, system.properties, fitting.para)
 head(p2)
 
 g <- ggplot(p2, aes(y = conc.salt, group = tempC)) +
-  geom_line(aes(x = conc.p, col = tempC), lwd = 2) +
+  geom_line(aes(x = conc.p + conc.q, col = tempC), lwd = 2) +
     scale_colour_continuous(breaks = seq(20, 40, 10), guide = 'legend') +
   labs(x = 'Polymer [mol/L]',
        y = 'Salt [mol/L]',
@@ -47,7 +47,7 @@ p3 <- do.call(rbind, lapply(seq(0.34, 0.44, 0.05), function(sigma){
 }))
 
 g <- ggplot(p3, aes(y = conc.salt, group = sigma.p)) +
-  geom_line(aes(x = conc.p, col = sigma.p), lwd = 2) +
+  geom_line(aes(x = conc.p + conc.q, col = sigma.p), lwd = 2) +
     scale_colour_continuous(breaks = seq(0.34, 0.44, 0.05), guide = 'legend') +
   labs(x = 'Polymer [mol/L]',
        y = 'Salt [mol/L]',
@@ -63,7 +63,7 @@ p4 <- do.call(rbind, lapply(seq(500, 1000, 250), function(polymer.num){
 }))
 
 g <- ggplot(p4, aes(y = conc.salt, group = length.p)) +
-  geom_line(aes(x = conc.p, col = length.q), lwd = 2) +
+  geom_line(aes(x = conc.p + conc.q, col = length.q), lwd = 2) +
     scale_colour_continuous(breaks = seq(500, 1000, 250), guide = 'legend') +
   labs(x = 'Polymer [mol/L]',
        y = 'Salt [mol/L]',

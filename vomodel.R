@@ -90,10 +90,15 @@ pS <- function(sigma.p, sigma.q, kpq) {return((sigma.p + sigma.q*kpq) / (1 + kpq
 pA <- function(r.p, r.q, kpq) {return( (1/r.p + kpq/r.q) * (1/(1+kpq)) )}
 pB <- function(r.p, r.q, kpq) {
   return( -log(1+kpq)/(r.p*(1+kpq)) - kpq*(log(1+kpq)-log(kpq))/((r.q)*(1+kpq)) )}
-pp <- function(...){
+pp <- function(..., sysprop = NULL){
+    if(is.null(sysprop)) {
   arg <- list(...)
+        
+    } else {
+        arg <- sysprop
+    }
   out <- list()
-  kpq <- pkpq(...)
+  kpq <- pkpq(sysprop = arg)
   out$kpq <- kpq
   out$S <- pS(arg$sigma[1], arg$sigma[2], kpq)
   out$A <- pA(arg$polymer.num[1], arg$polymer.num[2], kpq)
@@ -105,7 +110,7 @@ gibbs <- function(phi.polymer, phi.salt, ...) {
   # return F/NkT
   arg <- list(...)
   alpha <- arg$alpha
-  para <- pp(...)
+  para <- pp(sysprop = arg)
   return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
       para$A * phi.polymer * log(phi.polymer) +
@@ -118,7 +123,7 @@ gibbs.d <- function(phi.polymer, phi.salt, ...) {
   # ... = alpha, sigma, polymer.num, kpq
   arg <- list(...)
   alpha <- arg$alpha
-  para <- pp(...)
+  para <- pp(sysprop = arg)
   return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     -alpha * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 * para$S +
       para$A * log(phi.polymer) + para$A +
@@ -130,7 +135,7 @@ gibbs.dd <- function(phi.polymer, phi.salt, ...) {
   # ... = alpha, sigma, polymer.num, kpq
   arg <- list(...)
   alpha <- arg$alpha
-  para <- pp(...)
+  para <- pp(sysprop = arg)
   return( (k.vol*kkB*arg$temp)/k.water.size^3* (
     -alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S ^ 2 +
       para$A * 1/phi.polymer +
@@ -141,7 +146,7 @@ gibbs.ddd <- function(phi.polymer, phi.salt, ...) {
   # ... = alpha, sigma, polymer.num, kpq
   arg <- list(...)
   alpha <- arg$alpha
-  para <- pp(...)
+  para <- pp(sysprop = arg)
   return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     alpha * 0.375 * (para$S * phi.polymer + phi.salt) ^ (-1.5) * para$S ^ 3 -
       para$A * 1/phi.polymer^2 +
@@ -153,7 +158,7 @@ gibbs.pfps <- function(phi.polymer, phi.salt, ...) {
   # log(0.5 * phis) + 1 +
   # -log(1 - phip - phis) - 1
   arg <- list(...)
-  para <- pp(...)
+  para <- pp(sysprop = arg)
   return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     -arg$alpha * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 +
       log(0.5 * phi.salt) + 1 +
@@ -164,7 +169,7 @@ gibbs.pdfps <- function(phi.polymer, phi.salt, ...) {
   #         -para.alpha * 0.75 * (para.S * phip + phis) ** (-0.5) * para.S +
   # 1/(1 - phip - phis)
   arg <- list(...)
-  para <- pp(...)
+  para <- pp(sysprop = arg)
   return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     -arg$alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S +
       1/(1 - phi.polymer - phi.salt))
@@ -416,7 +421,6 @@ get.binodal.curve <- function(tempC, Chi = 0, sysprop, fitting.para) {
   #' Chi = 0 or 5 * 5 matrix
   temp <- tempC + 273.15
   kpq <- pkpq(sysprop = sysprop)
-  # minimize integral of the second derivative  
   p <- binodal.curve_(
     temp = temp,
     Chi = Chi,
@@ -431,7 +435,8 @@ get.binodal.curve <- function(tempC, Chi = 0, sysprop, fitting.para) {
   )
   
   p2 <- as.data.frame.matrix(p) %>%
-      filter(phi.polymer.1 > max(phi.polymer.2))
+    # requiring the dense phase should be larger than dilute phase
+      filter(phi.polymer.1 > max(phi.polymer.2))  
   
   ds <- data.frame(
       phi.polymer = c(p2$phi.polymer.2, rev(p2$phi.polymer.1)),
@@ -441,28 +446,26 @@ get.binodal.curve <- function(tempC, Chi = 0, sysprop, fitting.para) {
       ) %>% 
       rowwise() %>%
       mutate( 
+          tempC = tempC,
           conc.salt = phi.salt / (kNa * sysprop$polymer.num[3] * 
                                       sysprop$size.ratio[3] * 
-                                      sysprop$water.size ^ 3) / 1000  # mol/L
-      ) %>% 
-      mutate(
+                                      sysprop$water.size ^ 3) / 1000,  # mol/L
           conc.p = phi.polymer/(1+kpq) /(kNa * sysprop$polymer.num[1] *
                                               sysprop$size.ratio[1] *
                                               sysprop$water.size ^ 3) / 1000,
           conc.q = phi.polymer*kpq/(1+kpq) /(kNa * sysprop$polymer.num[2] *
                                               sysprop$size.ratio[2] *
-                                              sysprop$water.size ^ 3) / 1000
-      ) %>%
-      mutate(
+                                              sysprop$water.size ^ 3) / 1000,
+          kpq = kpq,
           sigma.p = sysprop$sigma[1],
           sigma.q = sysprop$sigma[2],
-          tempC = tempC,
           length.p = sysprop$polymer.num[1],
           length.q = sysprop$polymer.num[2] 
       ) %>% 
       ungroup() %>%
       group_by(phi.salt) %>%
-      filter(diff(phi.polymer) > fitting.para$epsilon) %>%
+      # remove bad root
+      filter(diff(phi.polymer) > fitting.para$epsilon) %>% 
       ungroup() 
       
 }
