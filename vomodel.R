@@ -7,21 +7,9 @@ k.water.size <<- 0.31E-9  # 0.31nm as a size of a water molecule
 k.vol <<- 120E-9
 k.water.conc  <<- 1000 / 18.01528 * 1000  # water concentration
 
-kkB <<- 1
-ke <<- 1
-kNa <<- 1
-k.vol <<- 1
-k.water.size <<- 300^(1/3)
-# # c(+, -, sp, sn, w)
-# Para <- list()
-# Para$size <- k.water.size
-# Para$charge.den <- c(11/207, 1, 1, 1, 0)
-# Para$polym.num <- c(207, 900E3 / (324 - 18), 1, 1, 1)  # polym.num. REF[Yanxian's Notebook]
-# Para$size.ratio <- c(1, 1, 1, 1, 1)
-
 ## From Phi to free.energy and phase diagram 
 
-alpha <- function(temp, size) {
+get.alpha <- function(temp, size) {
   # units: K, m
   alpha <-
     2 / 3 * sqrt(pi) * ((ke ^ 2 / (kEr * kkB * temp)) / size) ^ (3 / 2)
@@ -91,9 +79,11 @@ free.energy.funs <- function(phi, phi.salt, temp, ...) {
   }
 
 # Analytical
-pkpq <- function(...){
-  # TODO:// kpq = phi_q / pho_p
-  arg <- list(...)
+pkpq <- function(..., sysprop = NULL){
+  # kpq = phi_q / pho_p
+  # arg <- ifelse(missing(arg), list(...), arg)
+    if (is.null(sysprop)) arg <- list(...)
+    else arg <- sysprop
   return(arg$size.ratio[2] * arg$sigma[1] / (arg$size.ratio[1]*arg$sigma[2]))
 }
 pS <- function(sigma.p, sigma.q, kpq) {return((sigma.p + sigma.q*kpq) / (1 + kpq))}
@@ -103,15 +93,11 @@ pB <- function(r.p, r.q, kpq) {
 pp <- function(...){
   arg <- list(...)
   out <- list()
-  # out$kpq <- arg$kpq  # //TODO:
-  kpq <- pkpq(...)  # //TODO:
+  kpq <- pkpq(...)
+  out$kpq <- kpq
   out$S <- pS(arg$sigma[1], arg$sigma[2], kpq)
   out$A <- pA(arg$polymer.num[1], arg$polymer.num[2], kpq)
   out$B <- pB(arg$polymer.num[1], arg$polymer.num[2], kpq)
-  # DEBUG
-  out$S <- 0.44
-  out$A <- 0.001
-  out$B <- -0.0006931472
   return(out)
 }
 gibbs <- function(phi.polymer, phi.salt, ...) {
@@ -120,7 +106,7 @@ gibbs <- function(phi.polymer, phi.salt, ...) {
   arg <- list(...)
   alpha <- arg$alpha
   para <- pp(...)
-  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
+  return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
       para$A * phi.polymer * log(phi.polymer) +
       para$B * phi.polymer +
@@ -133,7 +119,7 @@ gibbs.d <- function(phi.polymer, phi.salt, ...) {
   arg <- list(...)
   alpha <- arg$alpha
   para <- pp(...)
-  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
+  return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     -alpha * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 * para$S +
       para$A * log(phi.polymer) + para$A +
       para$B -
@@ -145,7 +131,7 @@ gibbs.dd <- function(phi.polymer, phi.salt, ...) {
   arg <- list(...)
   alpha <- arg$alpha
   para <- pp(...)
-  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
+  return( (k.vol*kkB*arg$temp)/k.water.size^3* (
     -alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S ^ 2 +
       para$A * 1/phi.polymer +
       1/(1 - phi.polymer - phi.salt)
@@ -156,7 +142,7 @@ gibbs.ddd <- function(phi.polymer, phi.salt, ...) {
   arg <- list(...)
   alpha <- arg$alpha
   para <- pp(...)
-  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
+  return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     alpha * 0.375 * (para$S * phi.polymer + phi.salt) ^ (-1.5) * para$S ^ 3 -
       para$A * 1/phi.polymer^2 +
       1/(1 - phi.polymer - phi.salt)^2
@@ -168,7 +154,7 @@ gibbs.pfps <- function(phi.polymer, phi.salt, ...) {
   # -log(1 - phip - phis) - 1
   arg <- list(...)
   para <- pp(...)
-  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
+  return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     -arg$alpha * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 +
       log(0.5 * phi.salt) + 1 +
       -log(1 - phi.polymer - phi.salt) - 1
@@ -179,7 +165,7 @@ gibbs.pdfps <- function(phi.polymer, phi.salt, ...) {
   # 1/(1 - phip - phis)
   arg <- list(...)
   para <- pp(...)
-  return( k.water.size^3/(k.vol*kkB*arg$temp) * (
+  return( (k.vol*kkB*arg$temp)/k.water.size^3 * (
     -arg$alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S +
       1/(1 - phi.polymer - phi.salt))
   )
@@ -201,13 +187,13 @@ phi <- function(conc, size.ratio, length.water, polym.num) {
   phi <- kNa * conc * polym.num * size.ratio * length.water ^ 3
   return(phi)
 }
-get.phi <- function(conc, Para) {
+get.phi <- function(conc, system.properties) {
   phis <-
-    phi(conc[1:4], Para$size.ratio[1:4], Para$size, Para$polym.num[1:4])
+    phi(conc[1:4], system.properties$size.ratio[1:4], system.properties$water.size, system.properties$polym.num[1:4])
   return(c(phis, 1 - sum(phis)))
 }
-get.phis <- function(concs, Para) {
-  return((lapply(concs, get.phi, Para)))
+get.phis <- function(concs, system.properties) {
+  return((lapply(concs, get.phi, system.properties)))
 }
 
 ## From Concentration to Phi to Free energy
@@ -393,34 +379,97 @@ binodal.curve.fun_ <- function(x, phi.polymer.2, ...) {
   return(binodal.curve.fun(x = c(phi.polymer.1, phi.polymer.2), phi.salt = phi.salt, ...))
 }
 binodal.curve_ <- function(...) {
-  # generate binodal curve
-  arg <- list(...)
-  binodal.guess <- arg$binodal.guess
-  c.point <- critical.point_(...)
-  if (DEBUG) print(c('critical point', c.point))
-  phi.polymer.2.seq <- c(seq(2e-13, c.point$phi.polymer/1E2, 1e-6), 
-                         seq(c.point$phi.polymer/1E2, c.point$phi.polymer, 1e-4))
-  # search binodal point return c(phi.polymer, phi.salt)
-  output <- lapply((phi.polymer.2.seq), function(phi.polymer.2) {
-    # roots <- stupid.fsolve(f = binodal.curve.fun, x = phi.polymer.seq, x.critic = c.point$phi.polymer,
-    #                        phi.salt = phi.salt, ...)
-    roots <- nleqslv::nleqslv (
-         binodal.guess,
-         binodal.curve.fun_,
-        binodal.curve.jacobian_,
-        phi.polymer.2 = phi.polymer.2,
-        ...
-      )
-    # binodal.curve.guess <- roots$x
-    return(c(
-        phi.polymer.1 = roots$x[1],
-        phi.polymer.2 = phi.polymer.2,
-        phi.salt = roots$x[2],
-        f1 = roots$fval[1],
-        f2 = roots$fval[2]
-      ))
-  })
-  return(do.call(rbind, output))
+    # generate binodal curve
+    arg <- list(...)
+    binodal.guess <- arg$binodal.guess
+    c.point <- critical.point_(...)
+    if (DEBUG)
+        print(c('critical point', c.point))
+    phi.polymer.2.seq <- c(
+        # seq(2e-13, c.point$phi.polymer / 1E2, 1e-6),
+        # seq(c.point$phi.polymer / 1E2, c.point$phi.polymer, 1e-4)
+        seq(arg$epsilon, c.point$phi.polymer, arg$sampling.gap)
+    )
+    # search binodal point return c(phi.polymer, phi.salt)
+    output <- lapply((phi.polymer.2.seq), function(phi.polymer.2) {
+        roots <- nleqslv::nleqslv (
+            binodal.guess,
+            binodal.curve.fun_,
+            binodal.curve.jacobian_,
+            phi.polymer.2 = phi.polymer.2,
+            ...
+        )
+        # binodal.curve.guess <- roots$x
+        c(
+            phi.polymer.1 = roots$x[1],
+            phi.polymer.2 = phi.polymer.2,
+            phi.salt = roots$x[2],
+            f1 = roots$fval[1],
+            f2 = roots$fval[2]
+        )
+    })
+    return(do.call(rbind, output))
+}
+get.binodal.curve <- function(tempC, Chi = 0, sysprop, fitting.para) {
+  #' get binodal curve by Voorn Overbeek Model 3D component system
+  #' temp in degree C
+  #' Chi = 0 or 5 * 5 matrix
+  temp <- tempC + 273.15
+  kpq <- pkpq(sysprop = sysprop)
+  # minimize integral of the second derivative  
+  p <- binodal.curve_(
+    temp = temp,
+    Chi = Chi,
+    alpha = get.alpha(temp, sysprop$water.size),
+    sigma = sysprop$sigma,
+    polymer.num = sysprop$polymer.num,
+    size.ratio = sysprop$size.ratio,
+    guess.critical.point = fitting.para$critical.point.guess,
+    binodal.guess = fitting.para$binodal.guess,
+    epsilon = fitting.para$epsilon,
+    sampling.gap = fitting.para$sampling.gap
+  )
+  
+  p2 <- as.data.frame.matrix(p) %>%
+      filter(phi.polymer.1 > max(phi.polymer.2))
+  
+  ds <- data.frame(
+      phi.polymer = c(p2$phi.polymer.2, rev(p2$phi.polymer.1)),
+      phi.salt = c(p2$phi.salt, rev(p2$phi.salt)),
+      phase = factor(c(rep('dilute', nrow(p2)), rep('dense', nrow(p2))), 
+                        levels = c('dilute', 'dense'))
+      ) %>% 
+      rowwise() %>%
+      mutate( 
+          conc.salt = phi.salt / (kNa * sysprop$polymer.num[3] * 
+                                      sysprop$size.ratio[3] * 
+                                      sysprop$water.size ^ 3) / 1000  # mol/L
+      ) %>% 
+      mutate(
+          conc.p = phi.polymer/(1+kpq) /(kNa * sysprop$polymer.num[1] *
+                                              sysprop$size.ratio[1] *
+                                              sysprop$water.size ^ 3) / 1000,
+          conc.q = phi.polymer*kpq/(1+kpq) /(kNa * sysprop$polymer.num[2] *
+                                              sysprop$size.ratio[2] *
+                                              sysprop$water.size ^ 3) / 1000
+      ) %>%
+      mutate(
+          sigma.p = sysprop$sigma[1],
+          sigma.q = sysprop$sigma[2],
+          tempC = tempC,
+          length.p = sysprop$polymer.num[1],
+          length.q = sysprop$polymer.num[2] 
+      ) %>% 
+      ungroup() %>%
+      group_by(phi.salt) %>%
+      filter(diff(phi.polymer) > fitting.para$epsilon) %>%
+      ungroup() 
+      
+}
+get.binodal.curves <- function(tempCs, Chi = 0, sysprop, fitting.para) {
+    do.call(rbind, lapply(tempCs, function(tempC){
+        get.binodal.curve(tempC, Chi = 0, sysprop, fitting.para)
+    }))
 }
 
 ## Spinodal curve

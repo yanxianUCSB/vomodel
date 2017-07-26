@@ -1,4 +1,4 @@
-# test binodal curve
+# EXPLORE binodal curve
 rm(list = ls())
 source('vomodel.R')
 library(yxplot)
@@ -6,66 +6,68 @@ library(ggplot2)
 library(rootSolve)
 library(pracma)
 library(minpack.lm)
-source('test.peek.para.R')
-DEBUG <<- T
-a <- mean(sapply(phi.polymer.seq, gibbs.d, phi.salt, 
-                 temp = temp,
-                 alpha = alpha,
-                 sigma = sigma,
-                 Chi = 0,
-                 polymer.num = polymer.num,
-                 size.ratio = size.ratio
-                 ))
-b <- mean(sapply(phi.polymer.seq, gibbs, phi.salt, temp = temp,
-                 alpha = alpha,
-                 sigma = sigma,
-                 Chi = 0,
-                 polymer.num = polymer.num,
-                 size.ratio = size.ratio)[1:10])
+DEBUG <- F
 
-# binodal.curve.fun(c(a, b), 
-#                   phi.salt = phi.salt,
-#                   temp = temp,
-#                   alpha = alpha,
-#                   sigma = sigma,
-#                   Chi = 0,
-#                   polymer.num = polymer.num,
-#                   size.ratio = size.ratio)
+system.properties <- list(
+  polymer.num = c(1000, 1000, 1, 1, 1),
+  sigma = c(0.34, 0.34, 1, 1, 0),
+  size.ratio = c(1, 1, 1, 1, 1),
+  water.size = k.water.size
+)
+fitting.para <- list()
+fitting.para$epsilon <- 1E-8
+fitting.para$sampling.gap <- 1e-4
+fitting.para$critical.point.guess <- c(phi.polymer=0.01, phi.salt=0.15)
 
-# 
-# p <- sapply(seq(0.0001, 0.017, 1e-3), function(phi.salt){
-#   out <- binodal.curve.fun(c(0.01,0.1),
-#                        phi.salt = phi.salt,
-#                    temp = temp,
-#                    alpha = alpha,
-#                    sigma = sigma,
-#                    Chi = 0,
-#                    polymer.num = polymer.num,
-#                    size.ratio = size.ratio,
-#                    guess.critical.point = c(phi.polymer=0.01, phi.salt=0.15)
-#                    )
-#   return(c(phi.salt = phi.salt, f1 = out[1], f2 = out[2]))
-# })
 
-p <- binodal.curve_(
-                   temp = temp,
-                   alpha = alpha,
-                   sigma = sigma,
-                   Chi = 0,
-                   polymer.num = polymer.num,
-                   size.ratio = size.ratio,
-                   epsilon = 1E-8,
-                   guess.critical.point = c(phi.polymer=0.01, phi.salt=0.15),
-                   binodal.guess = c(0.1, 0.1)
-                   )
+# fitting.para$binodal.guess <- c(0.05, 0.05)
+# p1 <- get.binodal.curve(20, 0, system.properties, fitting.para)
+# fitting.para$binodal.guess <- c(0.1, 0.1)
+# p3 <- get.binodal.curve(40, 0, system.properties, fitting.para)
 
-# 
-p <- as.data.frame.matrix(p)
-g <- ggplot(p, aes(y = phi.salt)) +
-  geom_line(aes(x = phi.polymer.1), col = 'red') +
-  geom_line(aes(x = phi.polymer.2), col = 'blue') +
-  labs(x = 'Polymer [phi]',
-       y = 'Salt [phi]')
+fitting.para$binodal.guess <- c(1E-1, 1E-1)
+p2 <- get.binodal.curves(seq(20, 40, 10), 0, system.properties, fitting.para)
+
+head(p2)
+
+g <- ggplot(p2, aes(y = conc.salt, group = tempC)) +
+  geom_line(aes(x = conc.p, col = tempC), lwd = 2) +
+    scale_colour_continuous(breaks = seq(20, 40, 10), guide = 'legend') +
+  labs(x = 'Polymer [mol/L]',
+       y = 'Salt [mol/L]',
+       col = expression('Temperature'~degree~C))
 g <- theme.title.text.1(g)
 print(g)
-ggsave('test.binodal.curve.png', width = 5, height = 5)
+ggsave('test.binodal.curve.temp.png', width = 5, height = 5)
+
+
+p3 <- do.call(rbind, lapply(seq(0.34, 0.44, 0.05), function(sigma){
+    system.properties$sigma <- c(sigma, sigma, 1, 1, 0)
+    get.binodal.curve(30, 0, system.properties, fitting.para)
+}))
+
+g <- ggplot(p3, aes(y = conc.salt, group = sigma.p)) +
+  geom_line(aes(x = conc.p, col = sigma.p), lwd = 2) +
+    scale_colour_continuous(breaks = seq(0.34, 0.44, 0.05), guide = 'legend') +
+  labs(x = 'Polymer [mol/L]',
+       y = 'Salt [mol/L]',
+       col = expression(sigma) )
+g <- theme.title.text.1(g)
+print(g)
+ggsave('test.binodal.curve.sigma.png', width = 5, height = 5)
+
+
+p4 <- do.call(rbind, lapply(seq(500, 1000, 250), function(polymer.num){
+    system.properties$polymer.num <- c(polymer.num, polymer.num, 1, 1, 0)
+    get.binodal.curve(30, 0, system.properties, fitting.para)
+}))
+
+g <- ggplot(p4, aes(y = conc.salt, group = length.p)) +
+  geom_line(aes(x = conc.p, col = length.q), lwd = 2) +
+    scale_colour_continuous(breaks = seq(500, 1000, 250), guide = 'legend') +
+  labs(x = 'Polymer [mol/L]',
+       y = 'Salt [mol/L]',
+       col = 'Poly. Num.' )
+g <- theme.title.text.1(g)
+print(g)
+ggsave('test.binodal.curve.polymernum.png', width = 5, height = 5)
