@@ -6,7 +6,7 @@ library(ggplot2)
 library(rootSolve)
 
 phi.polymer <- c(seq(0.000001, 0.03, 0.0001), seq(0.03, 0.4, 0.01))
-phi.salt <- seq(0.0001, 0.2, 0.01)
+phi.salt <- seq(0.0001, 0.2, 0.001)
 temp <- 300
 polymer.num <- c(1000, 1000, 1, 1, 1)
 alpha <- 3.655

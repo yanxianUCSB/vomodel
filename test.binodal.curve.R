@@ -6,6 +6,7 @@ library(ggplot2)
 library(dplyr)
 library(rootSolve)
 library(pracma)
+library(nleqslv)
 DEBUG <- F
 
 system.properties <- list(
