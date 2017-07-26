@@ -1,103 +1,26 @@
 # Voorn-Overbeek Modeling
-## Units
-#' constants: IUPAC units
-#' conc: mol / L 
-#' temp: degree C
-#' 
-## Global physics constants
-kNa           <<- 6.02E23
-kkB           <<- 1.38064852E-23
-ke            <<- 1.60217662E-19
-kEr           <<- 4 * pi * 80 * 8.85E-12  # F/m; vaccuum permitivity = 8.85E-12
-k.water.size  <<- 0.31E-9                 # 0.31nm as a size of a water molecule
-k.vol         <<- 1                       # volume of reacting system
+kNa <<- 6.02E23
+kkB <<- 1.38064852E-23
+ke  <<- 1.60217662E-19
+kEr <<- 4 * pi * 80 * 8.85E-12 # F/m; vaccuum permitivity = 8.85E-12
+k.water.size <<- 0.31E-9  # 0.31nm as a size of a water molecule
+k.vol <<- 120E-9
 k.water.conc  <<- 1000 / 18.01528 * 1000  # water concentration
 
-## math
-normed <- function(x) {
-  return((x - x[1]))
-}
-yx.numdiff <- function(f, ...) {
-  return(grad(f, ..., method = 'central'))
-}
-yx.fsolve <- function (f, x, J = NULL, maxiter = 100, tol = .Machine$double.eps^(0.5), 
-                       ...) {
-  x0 <- x
-    if (!is.numeric(x0)) 
-        stop("Argument 'x0' must be a numeric vector.")
-    x0 <- c(x0)
-    fun <- match.fun(f)
-    f <- function(x) fun(x, ...)
-    n <- length(x0)
-    m <- length(f(x0))
-    if (!is.null(J)) {
-        Jun <- match.fun(J)
-        J <- function(x) Jun(x, ...)
-    }
-    else {
-        J <- function(x) jacobian(f, x)
-    }
-    if (m == n) {
-        sol = broyden(f, x0, J0 = J(x0), maxiter = maxiter, 
-                      tol = tol)
-        xs <- sol$zero
-        fs <- f(xs)
-    }
-    else {
-        sol <- gaussNewton(x0, f, Jfun = J, maxiter = maxiter, 
-                           tol = tol)
-        xs <- sol$xs
-        fs <- sol$fs
-        if (fs > tol) 
-            warning("Minimum appears not to be a zero -- change starting point.")
-    }
-    return(list(x = xs, fval = fs))
-}
-yx.nr <- function(f, x, J, ..., epsilon = 1E-10, maxiter = 1E3) {
-  # Newton Raphson method
-  iter <- 1
-  new.guess <- x  #TODO
-  while(iter < maxiter){
-    iter <- iter + 1
-    guess <- new.guess
-    jacobian <-  J(guess, ...)
-    invjac <- inv(((jacobian)))
-      # new.guess <- guess + c(1, -1) * (guess[2]-guess[1])/maxiter
-    f1 <- f(guess, ...)
-    if(DEBUG) print(c(' f1', f1))
-    new.guess <- guess - 0.1 * invjac %*% f1
-    if(DEBUG) print(c('invjac %*% f1', invjac%*%f1))
-    if (abs(new.guess[1] - guess[1]) < epsilon && abs(new.guess[2] - guess[2]) < epsilon){
-      break
-    } else {
-        if(DEBUG) print('guess missed')
-    }
-  }
-    if(iter >= maxiter) {
-    print('maxiter reached')
-      return(list(x = c(NA, NA)))
-    } else {
-      print('nr completed')
-      return(list(x = new.guess))
-    }
-  return(list(
-    x = ifelse(iter == maxiter, new.guess, c(NA, NA))))
-}
-stupid.fsolve <- function(f, x, x.critic, epsilon = 1E-10, ...) {
-  # x[1] --- x.critic 
-  for(x1 in x[which(x < x.critic)]) {
-    # x.critic --- x[2]
-    for(x2 in x[which(x.critic <= x)]) {
-      f.out <- f(x = c(x1, x2), ...) 
-      if( abs(f.out[1]) < epsilon && abs(f.out[2]) < epsilon ) {
-        return(list(x = c(x1, x2), fval = c(epsilon, epsilon)))
-      }
-    }
-  }
-  return(list(x = c(NA, NA), fval = c(1E15, 1E15)))
-}
+kkB <<- 1
+ke <<- 1
+kNa <<- 1
+k.vol <<- 1
+k.water.size <<- 300^(1/3)
+# # c(+, -, sp, sn, w)
+# Para <- list()
+# Para$size <- k.water.size
+# Para$charge.den <- c(11/207, 1, 1, 1, 0)
+# Para$polym.num <- c(207, 900E3 / (324 - 18), 1, 1, 1)  # polym.num. REF[Yanxian's Notebook]
+# Para$size.ratio <- c(1, 1, 1, 1, 1)
 
 ## From Phi to free.energy and phase diagram 
+
 alpha <- function(temp, size) {
   # units: K, m
   alpha <-
@@ -117,26 +40,26 @@ Fchi <- function(Chi, phi) {
 }
 free.energy <- function(phi.polymer, phi.salt, alpha, sigma, Chi, temp,
                         polymer.num, size.ratio) {
-  kpq <- size.ratio[2] * sigma[1] / (size.ratio[1] * sigma[2])
+  # free.energy in Spruijt et al's work
     phi <-
       c(
-        phi.polymer * 1/(1 + kpq),
-        phi.polymer * kpq/(1 + kpq),
+        phi.polymer * 0.5,
+        phi.polymer * 0.5,
         phi.salt * 0.5,
         phi.salt * 0.5,
         1 - phi.polymer - phi.salt
       )
     g <-
-      (k.vol * kkB * temp) / k.water.size ^ 3 *
+      k.water.size ^ 3 / (k.vol * kkB * temp) *
       (Fen(phi, polymer.num, size.ratio) + Fel(alpha, sigma, phi) + Fchi(Chi, phi))
     return(g)
 }
 # Numeircal Derivative
 free.energy.f <- function(x, phi.salt, temp, ...) {
-  arg <- list(...)
+  l <- list(...)
   # free energy f
-  free.energy(phi.polymer = x, phi.salt, alpha=arg$alpha, sigma=arg$sigma, Chi=arg$Chi, temp,
-              polymer.num=arg$polymer.num, size.ratio=arg$size.ratio)
+  free.energy(phi.polymer = x, phi.salt, alpha=l$alpha, sigma=l$sigma, Chi=l$Chi, temp,
+              polymer.num=l$polymer.num, size.ratio=l$size.ratio)
 }
 free.energy.df <- function(x, phi.salt, temp, ...) {
   # df / dphi
@@ -167,9 +90,9 @@ free.energy.funs <- function(phi, phi.salt, temp, ...) {
     ))
   }
 
-# Analytical Derivative
+# Analytical
 pkpq <- function(...){
-  # kpq = phi_q / phi_p
+  # TODO:// kpq = phi_q / pho_p
   arg <- list(...)
   return(arg$size.ratio[2] * arg$sigma[1] / (arg$size.ratio[1]*arg$sigma[2]))
 }
@@ -198,12 +121,11 @@ gibbs <- function(phi.polymer, phi.salt, ...) {
   alpha <- arg$alpha
   para <- pp(...)
   return( k.water.size^3/(k.vol*kkB*arg$temp) * (
-    -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +  # enthalpy
-      para$A * phi.polymer * log(phi.polymer) +    # Flory Huggins Entropy
+    -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
+      para$A * phi.polymer * log(phi.polymer) +
       para$B * phi.polymer +
       phi.salt * log(0.5 * phi.salt) +
       (1 - phi.polymer - phi.salt) * log(1 - phi.polymer - phi.salt)
-      
   ))
 }
 gibbs.d <- function(phi.polymer, phi.salt, ...) {
@@ -338,6 +260,89 @@ get.free.energy_ <-
     return(ds)
   }
 
+## math
+normed <- function(x) {
+  return((x - x[1]))
+}
+yx.numdiff <- function(f, ...) {
+  return(grad(f, ..., method = 'central'))
+}
+yx.fsolve <- function (f, x, J = NULL, maxiter = 100, tol = .Machine$double.eps^(0.5), 
+                       ...) {
+  x0 <- x
+    if (!is.numeric(x0)) 
+        stop("Argument 'x0' must be a numeric vector.")
+    x0 <- c(x0)
+    fun <- match.fun(f)
+    f <- function(x) fun(x, ...)
+    n <- length(x0)
+    m <- length(f(x0))
+    if (!is.null(J)) {
+        Jun <- match.fun(J)
+        J <- function(x) Jun(x, ...)
+    }
+    else {
+        J <- function(x) jacobian(f, x)
+    }
+    if (m == n) {
+        sol = broyden(f, x0, J0 = J(x0), maxiter = maxiter, 
+                      tol = tol)
+        xs <- sol$zero
+        fs <- f(xs)
+    }
+    else {
+        sol <- gaussNewton(x0, f, Jfun = J, maxiter = maxiter, 
+                           tol = tol)
+        xs <- sol$xs
+        fs <- sol$fs
+        if (fs > tol) 
+            warning("Minimum appears not to be a zero -- change starting point.")
+    }
+    return(list(x = xs, fval = fs))
+}
+yx.nr <- function(f, x, J, ..., epsilon = 1E-10, maxiter = 1E3) {
+  # Newton Raphson method
+  iter <- 1
+  new.guess <- x  #TODO
+  while(iter < maxiter){
+    iter <- iter + 1
+    guess <- new.guess
+    jacobian <-  J(guess, ...)
+    invjac <- inv(((jacobian)))
+      # new.guess <- guess + c(1, -1) * (guess[2]-guess[1])/maxiter
+    f1 <- f(guess, ...)
+    if(DEBUG) print(c(' f1', f1))
+    new.guess <- guess - 0.1 * invjac %*% f1
+    if(DEBUG) print(c('invjac %*% f1', invjac%*%f1))
+    if (abs(new.guess[1] - guess[1]) < epsilon && abs(new.guess[2] - guess[2]) < epsilon){
+      break
+    } else {
+        if(DEBUG) print('guess missed')
+    }
+  }
+    if(iter >= maxiter) {
+    print('maxiter reached')
+      return(list(x = c(NA, NA)))
+    } else {
+      print('nr completed')
+      return(list(x = new.guess))
+    }
+  return(list(
+    x = ifelse(iter == maxiter, new.guess, c(NA, NA))))
+}
+stupid.fsolve <- function(f, x, x.critic, epsilon = 1E-10, ...) {
+  # x[1] --- x.critic 
+  for(x1 in x[which(x < x.critic)]) {
+    # x.critic --- x[2]
+    for(x2 in x[which(x.critic <= x)]) {
+      f.out <- f(x = c(x1, x2), ...) 
+      if( abs(f.out[1]) < epsilon && abs(f.out[2]) < epsilon ) {
+        return(list(x = c(x1, x2), fval = c(epsilon, epsilon)))
+      }
+    }
+  }
+  return(list(x = c(NA, NA), fval = c(1E15, 1E15)))
+}
   
 ## Critical point
 critical.point.fun_ <- function(phis, ...) {
@@ -358,6 +363,15 @@ critical.point_ <- function(...) {
 }
 
 ## Binodal curve
+binodal.curve.jacobian <- function(x, ...){
+  # return(jacobian(binodal.curve.fun, x, ...))
+  return(matrix(c(
+    gibbs.dd(x[1], ...),  # dF1/dX1
+    -gibbs.d(x[1], ...) + (x[2]-x[1])*gibbs.dd(x[1], ...) + gibbs.d(x[1], ...),  # dF2/dX1
+    -gibbs.dd(x[2], ...),  # dF1/dX2
+    gibbs.d(x[1], ...) - gibbs.d(x[2], ...)  # dF2/dX2
+  ), nrow = 2, ncol = 2))
+}
 binodal.curve.jacobian_ <- function(x, phi.polymer.2, ...){
   phi.polymer.1 <- x[1]
   phi.salt <- x[2]
@@ -509,15 +523,6 @@ critical.point <- function(alpha, sigma, Chi, temp,
   fsolve(f = critical.point.fun, x0 = guess, 
          alpha = alpha, sigma = sigma, Chi = Chi,
          temp=temp, polymer.num = polymer.num, size.ratio = size.ratio)
-}
-binodal.curve.jacobian <- function(x, ...){
-  # return(jacobian(binodal.curve.fun, x, ...))
-  return(matrix(c(
-    gibbs.dd(x[1], ...),  # dF1/dX1
-    -gibbs.d(x[1], ...) + (x[2]-x[1])*gibbs.dd(x[1], ...) + gibbs.d(x[1], ...),  # dF2/dX1
-    -gibbs.dd(x[2], ...),  # dF1/dX2
-    gibbs.d(x[1], ...) - gibbs.d(x[2], ...)  # dF2/dX2
-  ), nrow = 2, ncol = 2))
 }
 binodal.curve.fun <- function(x, ...) {
   return(c(
