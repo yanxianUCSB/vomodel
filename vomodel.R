@@ -20,6 +20,7 @@ get.binodal.curve <-
         #' temp in degree C
         #' Chi = 0 or 5 * 5 matrix
         temp <- tempC + 273.15
+        
         kpq <- pkpq(sysprop = sysprop)
         ds <- binodal.curve_(
             temp = temp,
@@ -505,7 +506,28 @@ stupid.fsolve <- function(f, x, x.critic, epsilon = 1E-10, ...) {
 
 
 ## Critical point
-
+c.point.temp <- function(sysprop, fitting.para) {
+    temp <- seq(273.15, 333.15, 0.1)
+    do.call(rbind, lapply(temp, function(temp) {
+        alpha <- get.alpha(temp, sysprop$water.size)
+        polymer.num <- sysprop$polymer.num
+        sigma <- sysprop$sigma
+        size.ratio <- sysprop$size.ratio
+        Chi <- sysprop$Chi
+        molar.ratio <- sysprop$molar.ratio
+        ds <- critical.point_(guess.critical.point = fitting.para$critical.point.guess, temp = temp, polymer.num = polymer.num,
+                              alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi, molar.ratio = molar.ratio)
+        ds$temp <-  temp
+        return(as.data.frame(ds))
+    }))
+}
+c.point.temp.fun <- function(c.point.temp.ds) {
+    return(function(temp) {
+        list(
+             phi.polymer = spline(c.point.temp.ds$temp, c.point.temp.ds$phi.polymer, xout = temp)$y,
+            phi.salt = spline(c.point.temp.ds$temp, c.point.temp.ds$phi.salt, xout = temp)$y)
+    })
+}
 critical.point.fun_ <- function(phis, ...) {
     arg <- list(...)
     return(c(

@@ -22,11 +22,15 @@ system.properties <- list(
 fitting.para <- list()
 fitting.para$epsilon <- 1E-8
 fitting.para$sampling.gap <- 1e-4
-fitting.para$critical.point.guess <- c(phi.polymer=0.005, phi.salt=0.01)
+fitting.para$critical.point.guess <- c(phi.polymer=0.005, phi.salt=0.005)
+fitting.para$c.point.temp.fun <- c.point.temp.fun(c.point.temp(system.properties, fitting.para))
 fitting.para$binodal.guess <- c( 0.1,  0.005)  # phi.polymer.2, phi.salt = 0.9 * critical salt
 
-
-p <- lapply(seq(4, 60, 0.1), function(tempC) get.binodal.curve(tempC, 0, system.properties, fitting.para, unit = 'mol'))
+p <- lapply(seq(4, 60, 0.1), function(tempC) {
+    # update critical.point.guess
+    fitting.para$critical.point.guess <- as.numeric(fitting.para$c.point.temp.fun(tempC + 273)) 
+    get.binodal.curve(tempC, 0, system.properties, fitting.para, unit = 'mol')
+    })
 if(DEBUG) {
     print(head(p[[1]]))
     plot(p[[1]]$conc.p, p[[1]]$conc.salt)

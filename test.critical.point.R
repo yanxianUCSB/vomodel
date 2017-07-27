@@ -1,17 +1,43 @@
-# test.freeEnergy.grad free energy
-# using pracama::grad() to generate derivative
 
 rm(list = ls())
 source('vomodel.R')
-phi.polymer <- seq(0.01, 0.4, 0.0001)
-phi.salt <- 0.01
-temp <- 300
-polymer.num <- c(1000, 1000, 1, 1, 1)
-alpha <- 3.655
-sigma <- c(0.44, 0.44, 1, 1, 0)
-size.ratio <- c(1, 1, 1, 1, 1)
-Chi <- 0
+library(yxplot)
+library(ggplot2)
+library(dplyr)
+library(rootSolve)
+library(pracma)
+library(nleqslv)
+DEBUG <- T
+SAVE <- T
 
-ds <- critical.point_(guess.critical.point = c(phi.polymer = 0.01, phi.salt = 0.15), temp = temp, polymer.num = polymer.num,
-                 alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi, molar.ratio = rep(1, 5))
-print(ds)
+
+system.properties <- list(
+    polymer.num   = c(207, 900e3/306.2,   1, 1, 1),
+    sigma         = c(11/207, 0.5,   1, 1, 0),
+    size.ratio    = c(   1,    1,   1, 1, 1),
+    molar.ratio   = c(  900e3/306.2,  11, 0.5, 0.5, 0),  # the polycation:polyanion and cation:anion molar ratio
+    water.size    = k.water.size
+)
+fitting.para <- list()
+fitting.para$epsilon <- 1E-8
+fitting.para$sampling.gap <- 1e-4
+fitting.para$critical.point.guess <- c(phi.polymer=0.005, phi.salt=0.005)
+fitting.para$binodal.guess <- c( 0.1,  0.005)  # phi.polymer.2, phi.salt = 0.9 * critical salt
+
+
+
+c.point.temp.ds <- c.point.temp(system.properties, fitting.para)
+c.point.temp.f <- c.point.temp.fun(c.point.temp.ds)
+c.point.temp.f(seq(273.15, 333.15, 0.1))
+
+g <- ggplot(c.point.temp.ds, aes(x = phi.polymer, y = phi.salt, col = temp)) +
+    geom_point(size = 1) + 
+    labs(x = 'critical polymer fraction',
+         y = 'critical salt fraction',
+         col = 'temperature [K]') +
+    scale_color_continuous(breaks = c(283, 308, 333))
+    
+g <- theme.background.1(g)
+g <- theme.title.text.1(g)
+print(g)
+if(SAVE) ggsave('test.critical.point.png', width = 5, height = 5)
