@@ -6,6 +6,7 @@ kEr <<- 4 * pi * 80 * 8.85E-12 # F/m; vaccuum permitivity = 8.85E-12
 k.water.size <<- 0.31E-9  # 0.31nm as a size of a water molecule
 k.vol <<- 120E-9
 k.water.conc  <<- 1000 / 18.01528 * 1000  # water concentration
+k.dna.contour.unit.length <<- 0.33E-9  # 0.33 nm
 
 
 ## USERS
