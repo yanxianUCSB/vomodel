@@ -8,12 +8,14 @@ library(rootSolve)
 library(pracma)
 library(nleqslv)
 DEBUG <- F
+SAVE <- T
 
 system.properties <- list(
   polymer.num = c(1000, 1000, 1, 1, 1),
   sigma = c(0.44, 0.44, 1, 1, 0),
   size.ratio = c(1, 1, 1, 1, 1),
-  water.size = k.water.size
+  water.size = k.water.size,
+  molar.ratio = rep(1, 5)
 )
 fitting.para <- list()
 fitting.para$epsilon <- 1E-8
@@ -45,7 +47,10 @@ g <- ggplot(ds, aes(y = phi.salt, group = ID)) +
   geom_line(aes(x = phi.polymer, col = ID), lwd = 2, lty = 2, alpha = 0.8) +
   labs(x = 'Polymer phi',
        y = 'Salt psi',
-       col = '')
+       col = paste0('RMSE = ', format(rmserr(x = spline(ds$phi.polymer[which(ds$ID == 'Yanxian')], 
+                                      ds$phi.salt[which(ds$ID == 'Yanxian')], 
+                                      xout = ds$phi.polymer[which(ds$ID == 'CHIMAD')])$y,
+                           y = ds$phi.salt[which(ds$ID == 'CHIMAD')])$rmse, digits = 3)))
 g <- theme.title.text.1(g)
 print(g)
-ggsave('test.binodal.curve.verify.png', width = 5, height = 5)
+if(SAVE) ggsave('test.binodal.curve.verify.png', width = 5, height = 5)

@@ -2,6 +2,7 @@
 rm(list = ls())
 source('vomodel.R')
 library(yxplot)
+library(yxhelper)
 library(ggplot2)
 library(rootSolve)
 

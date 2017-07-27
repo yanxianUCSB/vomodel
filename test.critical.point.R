@@ -13,5 +13,5 @@ size.ratio <- c(1, 1, 1, 1, 1)
 Chi <- 0
 
 ds <- critical.point_(guess.critical.point = c(phi.polymer = 0.01, phi.salt = 0.15), temp = temp, polymer.num = polymer.num,
-                 alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi)
-ds
+                 alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi, molar.ratio = rep(1, 5))
+print(ds)

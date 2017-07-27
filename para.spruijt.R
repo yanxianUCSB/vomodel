@@ -3,7 +3,7 @@
 Para <- list()
 Para$MW <- c(1, 1, 0, 0, 0)  # PDAEMA, PAA, Na, Cl, water, g/mol
 Para$mass.ratio <- c(0.5, 0.5, 0, 0, 0)
-Para$size <- k.water.size  # meter
+Para$water.size <- k.water.size  # meter
 Para$charge.den <-
   c(1, 1, 1, 1, 0)  # protein, rna, na, cl, h2o
 Para$polym.num <-
