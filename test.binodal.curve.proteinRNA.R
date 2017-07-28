@@ -8,9 +8,10 @@ library(rootSolve)
 library(pracma)
 library(nleqslv)
 DEBUG <- T
-SAVE <- T
+SAVE <- F
 
 get.binodal.curve.proteinRNA <- function() {
+    
     system.properties <- list(
         polymer.num   = c(207, 900e3 / 306.2,   1, 1, 1),
         sigma         = c(11 / 207, 0.5,   1, 1, 0),
@@ -19,21 +20,21 @@ get.binodal.curve.proteinRNA <- function() {
         # the polycation:polyanion and cation:anion molar ratio
         water.size    = k.water.size
     )
-    fitting.para <- list()
-    fitting.para$epsilon <- 1E-8
-    fitting.para$sampling.gap <- 1e-4
-    fitting.para$critical.point.guess <-
-        c(phi.polymer = 0.005, phi.salt = 0.005)
-    fitting.para$c.point.temp.fun <-
-        c.point.temp.fun(c.point.temp(system.properties, fitting.para))
-    fitting.para$binodal.guess <-
-        c(0.1,  0.005)  # phi.polymer.2, phi.salt = 0.9 * critical salt
+    fitting.para <- list(
+        epsilon = 1E-8 , 
+        sampling.gap = 1e-9 ,
+        critical.point.guess = c(phi.polymer = 0.005, phi.salt = 0.005) ,
+        c.point.temp.fun = c.point.temp.fun(c.point.temp(system.properties, fitting.para)) ,
+        binodal.guess = 0.1  # phi.polymer.2
+    )
+    sampling <- list(
+        tempC = 4
+    )
     
-    p <- lapply(seq(4, 60, 0.1), function(tempC) {
+    p <- lapply(sampling$tempC, function(tempC) {
         # update critical.point.guess
-        fitting.para$critical.point.guess <-
-            as.numeric(fitting.para$c.point.temp.fun(tempC + 273))
-        get.binodal.curve(tempC, 0, system.properties, fitting.para, unit = 'mol')
+        fitting.para$critical.point.guess <- as.numeric(fitting.para$c.point.temp.fun(tempC + 273))
+        get.binodal.curve(tempC, Chi = 0, system.properties, fitting.para, unit = 'mol')
     })
     if (DEBUG) {
         print(head(p[[1]]))

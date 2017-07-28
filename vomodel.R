@@ -655,20 +655,25 @@ binodal.curve.fun_ <- function(x, phi.polymer.2, ...) {
         ...
     ))
 }
-binodal.curve_ <- function(..., sysprop = NULL) {
+binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
     # generate binodal curve
-    arg <- list(...)
+    if (is.null(sysprop)) arg <- list(...)
+    else arg <- sysprop
     
     c.point <- critical.point_(...)
     if (DEBUG) print(c('critical point', c.point))
     
     binodal.guess <- arg$binodal.guess
-    binodal.guess[2] <- c.point$phi.salt * 0.9
+    binodal.guess[2] <- c.point$phi.salt * 0.01
     
     # search binodal point return c(phi.polymer, phi.salt)
-    phi.polymer.2.seq <- c( seq(arg$sampling.gap, c.point$phi.polymer, arg$sampling.gap))
+    # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
+    #                        seq( arg$sampling.gap * 1e3, c.point$phi.polymer, arg$sampling.gap * 1e4))
+    n <- floor(0.5 * (1 + sqrt(1 + 8 * c.point$phi.polymer / arg$sampling.gap)))
+    phi.polymer.2.seq <- arg$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
     
-    output <- lapply((phi.polymer.2.seq), function(phi.polymer.2) {
+    output <- list()
+    for (phi.polymer.2 in phi.polymer.2.seq) {
         roots <- nleqslv::nleqslv (
             binodal.guess,
             binodal.curve.fun_,
@@ -676,15 +681,33 @@ binodal.curve_ <- function(..., sysprop = NULL) {
             phi.polymer.2 = phi.polymer.2,
             ...
         )
-        # binodal.curve.guess <- roots$x
-        c(
-            phi.polymer.1 = roots$x[1],
-            phi.polymer.2 = phi.polymer.2,
-            phi.salt = roots$x[2],
-            f1 = roots$fval[1],
-            f2 = roots$fval[2]
-        )
-    })
+        output[[length(output) + 1]] <-
+            c(
+                phi.polymer.1 = roots$x[1],
+                phi.polymer.2 = phi.polymer.2,
+                phi.salt = roots$x[2],
+                f1 = roots$fval[1],
+                f2 = roots$fval[2]
+            )
+        binodal.guess <- roots$x
+    }
+    # output <- lapply((phi.polymer.2.seq), function(phi.polymer.2) {
+    #     roots <- nleqslv::nleqslv (
+    #         binodal.guess,
+    #         binodal.curve.fun_,
+    #         binodal.curve.jacobian_,
+    #         phi.polymer.2 = phi.polymer.2,
+    #         ...
+    #     )
+    #     # binodal.curve.guess <- roots$x
+    #     c(
+    #         phi.polymer.1 = roots$x[1],
+    #         phi.polymer.2 = phi.polymer.2,
+    #         phi.salt = roots$x[2],
+    #         f1 = roots$fval[1],
+    #         f2 = roots$fval[2]
+    #     )
+    # })
     
     p2 <- as.data.frame.matrix(do.call(rbind, output)) %>%
         # requiring the dense phase should be larger than dilute phase
