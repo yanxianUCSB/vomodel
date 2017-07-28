@@ -232,28 +232,34 @@ gibbs <- function(phi.polymer, phi.salt, ...) {
     arg <- list(...)
     alpha <- arg$alpha
     para <- pp(sysprop = arg)
+    kpq <- para$kpq
+    phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
     return(
         (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
             -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
                 para$A * phi.polymer * log(phi.polymer) +
                 para$B * phi.polymer +
                 phi.salt * log(0.5 * phi.salt) +
-                (1 - phi.polymer - phi.salt) * log(1 - phi.polymer - phi.salt)
+                (1 - phi.polymer - phi.salt) * log(1 - phi.polymer - phi.salt) +
+                t(phi) %*% arg$Chi %*% phi
         )
     )
 }
 gibbs.d <- function(phi.polymer, phi.salt, ...) {
     # ... = alpha, sigma, polymer.num, kpq
     arg <- list(...)
-    
     alfa <- arg$alpha
+    Chi <- arg$Chi
     para <- pp(sysprop = arg)
+    kpq <- para$kpq
+    phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
     return(
         (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
             -alfa * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 * para$S +
                 para$A * log(phi.polymer) + para$A +
                 para$B -
-                log(1 - phi.polymer - phi.salt) - 1
+                log(1 - phi.polymer - phi.salt) - 1 +
+                2*Chi[1,1]*kpq/(1+kpq)^2 * phi.polymer + 2/(1+kpq)*Chi[1,1:5]%*%phi - 2/(1+kpq)*Chi[1,1]*phi[1]
         )
     )
 }
@@ -262,11 +268,13 @@ gibbs.dd <- function(phi.polymer, phi.salt, ...) {
     arg <- list(...)
     alpha <- arg$alpha
     para <- pp(sysprop = arg)
+    kpq <- para$kpq
     return(
         (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
             -alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S ^ 2 +
                 para$A * 1 / phi.polymer +
-                1 / (1 - phi.polymer - phi.salt)
+                1 / (1 - phi.polymer - phi.salt) +
+                2*arg$Chi[1,1]*kpq/(1+kpq)^2
         )
     )
 }
@@ -288,20 +296,27 @@ gibbs.pfps <- function(phi.polymer, phi.salt, ...) {
     # log(0.5 * phis) + 1 +
     # -log(1 - phip - phis) - 1
     arg <- list(...)
+    Chi <- arg$Chi
     para <- pp(sysprop = arg)
+    kpq <- para$kpq
     return((k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
         -arg$alpha * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 +
-            log(0.5 * phi.salt) + 1+-log(1 - phi.polymer - phi.salt) - 1
+            log(0.5 * phi.salt) + 1 +
+            -log(1 - phi.polymer - phi.salt) - 1 +
+            (Chi[1,3]+Chi[1,4]-2*Chi[1,5])/(1+kpq) * phi.polymer
     ))
 }
 gibbs.pdfps <- function(phi.polymer, phi.salt, ...) {
     #         -para.alpha * 0.75 * (para.S * phip + phis) ** (-0.5) * para.S +
     # 1/(1 - phip - phis)
     arg <- list(...)
+    Chi <- arg$Chi
     para <- pp(sysprop = arg)
+    kpq <- para$kpq
     return((k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
         -arg$alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S +
-            1 / (1 - phi.polymer - phi.salt)
+            1 / (1 - phi.polymer - phi.salt) +
+            (Chi[1,3]+Chi[1,4]-2*Chi[1,5])/(1+kpq)
     ))
 }
 gibbs.funs <- function(phi.polymer, phi.salt, ...) {
