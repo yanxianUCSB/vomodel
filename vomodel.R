@@ -1,13 +1,16 @@
 # Voorn-Overbeek Modeling
 kNa <<- 6.02E23
-kkB <<- 1.38064852E-23
-ke  <<- 1.60217662E-19
+kkB <<- 1.38064852E-23  # Boltzmann Constant
+ke  <<- 1.60217662E-19  # Elementary charge
 kEr <<- 4 * pi * 80 * 8.85E-12 # F/m; vaccuum permitivity = 8.85E-12
-k.water.size <<- 0.31E-9  # 0.31nm as a size of a water molecule
-k.vol <<- 120E-9
+k.water.size <<- 0.31E-9  # calculated from 18 cm^3 / mol
+k.na.size  <<- 0.235E-9  # (Marcus 1988)
+k.cl.size  <<- 0.318E-9   # (Marcus 1988)
+k.vol <<- 1  # sample volume, doesn't affect the binodal curve
 k.water.conc  <<- 1000 / 18.01528 * 1000  # water concentration
-k.dna.contour.unit.length <<- 0.33E-9  # 0.33 nm
-
+k.dna.contour.unit.length <<- 0.33E-9  # 0.33 nm  (Blackburn 2006)
+k.lysozyme.density  <<-  0.33E-6  # m^3/g (Perkins 1986)
+k.amino.acid.length  <<-  (k.lysozyme.density * 14307 / kNa)^(1/3)
 
 ## USERS
 
@@ -34,7 +37,8 @@ get.binodal.curve <-
             guess.critical.point = fitting.para$critical.point.guess,
             binodal.guess = fitting.para$binodal.guess,
             epsilon = fitting.para$epsilon,
-            sampling.gap = fitting.para$sampling.gap
+            sampling.gap = fitting.para$sampling.gap,
+            fitting.para = fitting.para
         ) %>%
             mutate(
                 temp = temp,
@@ -259,30 +263,38 @@ gibbs.d <- function(phi.polymer, phi.salt, ...) {
                 para$A * log(phi.polymer) + para$A +
                 para$B -
                 log(1 - phi.polymer - phi.salt) - 1 +
-                2*Chi[1,1]*kpq/(1+kpq)^2 * phi.polymer + 2/(1+kpq)*Chi[1,1:5]%*%phi - 2/(1+kpq)*Chi[1,1]*phi[1]
+                2*phi.polymer*(1/(1+kpq)^2)*(Chi[1,1]+Chi[1,2]+Chi[2,1]+Chi[2,2]) +
+                (1/(1+kpq))*((Chi[1,3]+Chi[3,1]+Chi[2,3]+Chi[3,2])*phi[3] + (Chi[1,4]+Chi[4,1]+Chi[2,4]+Chi[4,2])*phi[4] + (Chi[1,5]+Chi[5,1]+Chi[2,5]+Chi[5,2])*phi[5])
+                # 2*Chi[1,1]*kpq/(1+kpq)^2 * phi.polymer + 2/(1+kpq)*Chi[1,1:5]%*%phi - 2/(1+kpq)*Chi[1,1]*phi[1]
         )
     )
 }
 gibbs.dd <- function(phi.polymer, phi.salt, ...) {
     # ... = alpha, sigma, polymer.num, kpq
     arg <- list(...)
+    Chi <- arg$Chi
     alpha <- arg$alpha
     para <- pp(sysprop = arg)
     kpq <- para$kpq
+    phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
     return(
         (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
             -alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S ^ 2 +
                 para$A * 1 / phi.polymer +
                 1 / (1 - phi.polymer - phi.salt) +
-                2*arg$Chi[1,1]*kpq/(1+kpq)^2
+                2*(1/(1+kpq)^2)*(Chi[1,1]+Chi[1,2]+Chi[2,1]+Chi[2,2])
+                # 2*arg$Chi[1,1]*kpq/(1+kpq)^2
         )
     )
 }
 gibbs.ddd <- function(phi.polymer, phi.salt, ...) {
     # ... = alpha, sigma, polymer.num, kpq
     arg <- list(...)
+    Chi <- arg$Chi
     alpha <- arg$alpha
     para <- pp(sysprop = arg)
+    kpq <- para$kpq
+    phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
     return(
         (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
             alpha * 0.375 * (para$S * phi.polymer + phi.salt) ^ (-1.5) * para$S ^ 3 -
@@ -299,11 +311,14 @@ gibbs.pfps <- function(phi.polymer, phi.salt, ...) {
     Chi <- arg$Chi
     para <- pp(sysprop = arg)
     kpq <- para$kpq
+    phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
     return((k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
         -arg$alpha * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 +
             log(0.5 * phi.salt) + 1 +
             -log(1 - phi.polymer - phi.salt) - 1 +
-            (Chi[1,3]+Chi[1,4]-2*Chi[1,5])/(1+kpq) * phi.polymer
+            2*phi.salt*(1/4)*(Chi[3,3]+Chi[3,4]+Chi[4,3]+Chi[4,4]) +
+            (1/2)*((Chi[1,3]+Chi[3,1]+Chi[4,1]+Chi[1,4])*phi[1] + (Chi[3,2]+Chi[2,3]+Chi[4,2]+Chi[2,4])*phi[2] + (Chi[3,5]+Chi[5,3]+Chi[4,5]+Chi[5,4])*phi[5])
+            # (Chi[1,3]+Chi[1,4]-2*Chi[1,5])/(1+kpq) * phi.polymer
     ))
 }
 gibbs.pdfps <- function(phi.polymer, phi.salt, ...) {
@@ -313,10 +328,12 @@ gibbs.pdfps <- function(phi.polymer, phi.salt, ...) {
     Chi <- arg$Chi
     para <- pp(sysprop = arg)
     kpq <- para$kpq
+    phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
     return((k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
         -arg$alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S +
             1 / (1 - phi.polymer - phi.salt) +
-            (Chi[1,3]+Chi[1,4]-2*Chi[1,5])/(1+kpq)
+                (1/(1+kpq))*((Chi[1,3]+Chi[3,1]+Chi[2,3]+Chi[3,2])*(1/2) + (Chi[1,4]+Chi[4,1]+Chi[2,4]+Chi[4,2])*(1/2) - (Chi[1,5]+Chi[5,1]+Chi[2,5]+Chi[5,2]))
+            # (Chi[1,3]+Chi[1,4]-2*Chi[1,5])/(1+kpq)
     ))
 }
 gibbs.funs <- function(phi.polymer, phi.salt, ...) {
@@ -685,7 +702,8 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
     # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
     #                        seq( arg$sampling.gap * 1e3, c.point$phi.polymer, arg$sampling.gap * 1e4))
     n <- floor(0.5 * (1 + sqrt(1 + 8 * c.point$phi.polymer / arg$sampling.gap)))
-    phi.polymer.2.seq <- arg$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
+    phi.polymer.2.seq <-  arg$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5 
+    phi.polymer.2.seq <-  phi.polymer.2.seq[which(phi.polymer.2.seq >= fitting.para$sampling.start)]
     
     output <- list()
     for (phi.polymer.2 in phi.polymer.2.seq) {
