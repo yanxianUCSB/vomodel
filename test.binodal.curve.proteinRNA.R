@@ -8,7 +8,7 @@ library(rootSolve)
 library(pracma)
 library(nleqslv)
 DEBUG <- T
-SAVE <- F
+SAVE <- T
 
 get.binodal.curve.proteinRNA <- function() {
     
@@ -22,13 +22,13 @@ get.binodal.curve.proteinRNA <- function() {
     )
     fitting.para <- list(
         epsilon = 1E-8 , 
-        sampling.gap = 1e-9 ,
+        sampling.gap = 1.1e-6 ,
         critical.point.guess = c(phi.polymer = 0.005, phi.salt = 0.005) ,
         c.point.temp.fun = c.point.temp.fun(c.point.temp(system.properties, fitting.para)) ,
         binodal.guess = 0.1  # phi.polymer.2
     )
     sampling <- list(
-        tempC = 4
+        tempC = seq(4, 60, 0.1)
     )
     
     p <- lapply(sampling$tempC, function(tempC) {
@@ -38,7 +38,7 @@ get.binodal.curve.proteinRNA <- function() {
     })
     if (DEBUG) {
         print(head(p[[1]]))
-        plot(p[[1]]$conc.p, p[[1]]$conc.salt)
+        plot(p[[1]]$phi.polymer, p[[1]]$phi.salt)
     }
     
     return(do.call(rbind, p))
@@ -46,7 +46,7 @@ get.binodal.curve.proteinRNA <- function() {
 
 p <- get.binodal.curve.proteinRNA()
 if (SAVE)
-    saveRDS(p, 'binodal.curve.4C.60C.Chi0.dataset', ascii = T)
+    saveRDS(p, 'binodal.curve.4C.40C.Chi0.dataset', ascii = T)
 # test Chi
 
 # test assymmetric

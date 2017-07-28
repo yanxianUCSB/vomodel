@@ -664,7 +664,7 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
     if (DEBUG) print(c('critical point', c.point))
     
     binodal.guess <- arg$binodal.guess
-    binodal.guess[2] <- c.point$phi.salt * 0.01
+    binodal.guess[2] <- c.point$phi.salt * 0.9
     
     # search binodal point return c(phi.polymer, phi.salt)
     # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
@@ -674,6 +674,8 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
     
     output <- list()
     for (phi.polymer.2 in phi.polymer.2.seq) {
+        test <- binodal.curve.fun_(x = binodal.guess, phi.polymer.2 = phi.polymer.2, ...)
+        if (anyNA(test) || is.nan(test[1]) || is.nan(test[2])) next
         roots <- nleqslv::nleqslv (
             binodal.guess,
             binodal.curve.fun_,
