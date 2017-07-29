@@ -9,8 +9,8 @@ k.cl.size  <<- 0.318E-9   # (Marcus 1988)
 k.vol <<- 1  # sample volume, doesn't affect the binodal curve
 k.water.conc  <<- 1000 / 18.01528 * 1000  # water concentration
 k.dna.contour.unit.length <<- 0.33E-9  # 0.33 nm  (Blackburn 2006)
-k.lysozyme.density  <<-  0.33E-6  # m^3/g (Perkins 1986)
-k.amino.acid.length  <<-  (k.lysozyme.density * 14307 / kNa)^(1/3)
+k.lysozyme.density  <<-  0.70E-6  # m^3/g (Perkins 1986)
+k.amino.acid.length  <<-  (k.lysozyme.density * 14307 / 129 / kNa)^(1/3)
 
 ## USERS
 
@@ -550,6 +550,7 @@ c.point.temp <- function(sysprop, fitting.para) {
         molar.ratio <- sysprop$molar.ratio
         ds <- critical.point_(guess.critical.point = fitting.para$critical.point.guess, temp = temp, polymer.num = polymer.num,
                               alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi, molar.ratio = molar.ratio)
+        # if (DEBUG) print(ds)
         ds$temp <-  temp
         return(as.data.frame(ds))
     }))
@@ -571,11 +572,25 @@ critical.point.fun_ <- function(phis, ...) {
 critical.point_ <- function(...) {
     # output list of critical points
     arg <- list(...)
-    guess <- arg$guess.critical.point
-    out <- fsolve(f = critical.point.fun_,
-                  x0 = guess,
+    guess <- critical.point.get.guess(arg$guess.critical.point, ...)
+    out <- nleqslv(
+                  x = guess,
+                fn = critical.point.fun_,
                   ...)
     return(list(phi.polymer = out$x[1], phi.salt = out$x[2]))
+}
+critical.point.get.guess <- function(guess, ...) {
+    for(i in 1:100) {
+        test <- critical.point.fun_(guess, ...)
+        if(anyNA(test) ||
+           any(is.nan(test))) {
+            guess[1] <- guess[1]
+            guess[2] <- guess[2] * 1.001
+            next
+        } else 
+            break
+    }
+    return(guess)
 }
 
 
@@ -688,15 +703,24 @@ binodal.curve.fun_ <- function(x, phi.polymer.2, ...) {
     ))
 }
 binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
-    # generate binodal curve
+    #' generate binodal curve
     if (is.null(sysprop)) arg <- list(...)
     else arg <- sysprop
     
     c.point <- critical.point_(...)
     if (DEBUG) print(c('critical point', c.point))
     
-    binodal.guess <- arg$binodal.guess
-    binodal.guess[2] <- c.point$phi.salt * 0.9
+    # # starting point
+    # for (i in seq(1, 100, 1)) {
+    #     phi.polymer.2 <- fitting.para$sampling.start * i
+    #     test <- binodal.curve.fun_(x = binodal.guess, phi.polymer.2 = phi.polymer.2, ...)
+    #     if (anyNA(test) || is.nan(test[1]) || is.nan(test[2])) 
+    #         next
+    #     else {
+    #         if (DEBUG) print(phi.polymer.2)
+    #         fitting.para$sampling.start <-  phi.polymer.2
+    #         break}
+    # }
     
     # search binodal point return c(phi.polymer, phi.salt)
     # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
@@ -704,11 +728,22 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
     n <- floor(0.5 * (1 + sqrt(1 + 8 * c.point$phi.polymer / arg$sampling.gap)))
     phi.polymer.2.seq <-  arg$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5 
     phi.polymer.2.seq <-  phi.polymer.2.seq[which(phi.polymer.2.seq >= fitting.para$sampling.start)]
+    phi.polymer.2.seq <- (phi.polymer.2.seq)
+    
+    # Binodal Guess
+    binodal.guess <- arg$binodal.guess
+    binodal.guess[2] <- c.point$phi.salt * 0.9
     
     output <- list()
+    
     for (phi.polymer.2 in phi.polymer.2.seq) {
+        
         test <- binodal.curve.fun_(x = binodal.guess, phi.polymer.2 = phi.polymer.2, ...)
-        if (anyNA(test) || is.nan(test[1]) || is.nan(test[2])) next
+        if (anyNA(test) ||
+            is.nan(test[1]) ||
+            is.nan(test[2])) {
+            next
+        }
         roots <- nleqslv::nleqslv (
             binodal.guess,
             binodal.curve.fun_,
@@ -716,49 +751,43 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
             phi.polymer.2 = phi.polymer.2,
             ...
         )
+        if (roots$x[1] > 0 &&
+            roots$x[2] > 0 &&
+            roots$x[1] > phi.polymer.2 &&
+            max(abs(roots$fvec)) < 1 &&
+            roots$termcd == 2)
+            binodal.guess <- roots$x
+        else {
+            binodal.guess <- binodal.guess * 1.001
+            next
+        }
         output[[length(output) + 1]] <-
             c(
                 phi.polymer.1 = roots$x[1],
                 phi.polymer.2 = phi.polymer.2,
                 phi.salt = roots$x[2],
-                f1 = roots$fval[1],
+                f1 = roots$fvec[1],
                 f2 = roots$fval[2]
             )
-        binodal.guess <- roots$x
+        # if(DEBUG) print(roots$x)
+        # if(DEBUG) print(roots$termcd)
+        # if(DEBUG) print(binodal.guess)
     }
-    # output <- lapply((phi.polymer.2.seq), function(phi.polymer.2) {
-    #     roots <- nleqslv::nleqslv (
-    #         binodal.guess,
-    #         binodal.curve.fun_,
-    #         binodal.curve.jacobian_,
-    #         phi.polymer.2 = phi.polymer.2,
-    #         ...
-    #     )
-    #     # binodal.curve.guess <- roots$x
-    #     c(
-    #         phi.polymer.1 = roots$x[1],
-    #         phi.polymer.2 = phi.polymer.2,
-    #         phi.salt = roots$x[2],
-    #         f1 = roots$fval[1],
-    #         f2 = roots$fval[2]
-    #     )
-    # })
     
     p2 <- as.data.frame.matrix(do.call(rbind, output)) %>%
-        # requiring the dense phase should be larger than dilute phase
-        filter(phi.polymer.1 > max(phi.polymer.2))
-    
+        filter(phi.polymer.1 > max(phi.polymer.2))  # requiring the dense phase should be larger than dilute phase
+    assertthat::assert_that(nrow(p2) > 0)
     ds <- data.frame(
         phi.polymer = c(p2$phi.polymer.2, rev(p2$phi.polymer.1)),
         phi.salt = c(p2$phi.salt, rev(p2$phi.salt)),
         phase = factor(c(rep('dilute', nrow(p2)), rep('dense', nrow(p2))),
         levels = c('dilute', 'dense')),
         critic.polymer = c.point$phi.polymer,
-        critic.salt = c.point$phi.salt
+        critic.salt = c.point$phi.salt,
+        phase.separated = ifelse(nrow(p2) < 3, F, T)  # if the roots only has few rows then we say there is no binodal curve
     )
     return(ds)
 }
-
 
 ## Spinodal curve
 
