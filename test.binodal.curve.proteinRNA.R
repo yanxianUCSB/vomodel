@@ -49,8 +49,9 @@ get.binodal.curve.proteinRNA <- function() {
         cat(paste0('Bjerrum length [m]: ', lB, '\n'))
         cat(paste0('Sigma RNA: ', system.properties$sigma[2], '\n'))
         cat('fitting >>>\n')
-        get.binodal.curve(tempC, Chi = system.properties$Chi, system.properties, fitting.para, unit = 'mol')
+        out <- get.binodal.curve(tempC, Chi = system.properties$Chi, system.properties, fitting.para, unit = 'mol')
         cat('succeeded!\n')
+        return(out)
     })
     
     if (DEBUG) {
