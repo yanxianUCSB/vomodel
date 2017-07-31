@@ -80,7 +80,7 @@ get.binodal.curve <-
 get.binodal.curves <-
     function(tempCs, Chi = 0, sysprop, fitting.para) {
         do.call(rbind, lapply(tempCs, function(tempC) {
-            get.binodal.curve(tempC, Chi = 0, sysprop, fitting.para)
+            get.binodal.curve(tempC, Chi = Chi, sysprop, fitting.para)
         }))
     }
 
