@@ -9,7 +9,7 @@ library(rootSolve)
 library(pracma)
 library(nleqslv)
 DEBUG <- T
-SAVE <- T
+SAVE <- F
 
 
 # system.properties <- list(
