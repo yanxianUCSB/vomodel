@@ -207,12 +207,17 @@ pkpq <- function(..., sysprop = NULL) {
 pS <- function(sigma.p, sigma.q, kpq) {
         return((sigma.p + sigma.q * kpq) / (1 + kpq))
     }
-pA <- function(r.p, r.q, kpq) {
-        return((1 / r.p + kpq / r.q) * (1 / (1 + kpq)))
+pA <- function(r.p, r.q, kpq, size.ratio.p, size.ratio.q) {
+        return(
+            (1 / (r.p*size.ratio.p) + 
+                 kpq / (r.q*size.ratio.q)) * (1 / (1 + kpq))
+            )
     }
-pB <- function(r.p, r.q, kpq) {
-    return(-log(1 + kpq) / (r.p * (1 + kpq)) - kpq * (log(1 + kpq) - log(kpq)) /
-               ((r.q) * (1 + kpq)))
+pB <- function(r.p, r.q, kpq, size.ratio.p, size.ratio.q) {
+    return(
+        -log(1 + kpq) / (r.p * size.ratio.p * (1 + kpq)) -
+            kpq * (log(1 + kpq) - log(kpq)) / ((r.q * size.ratio.q) * (1 + kpq))
+        )
 }
 pp <- function(..., sysprop = NULL) {
     if (is.null(sysprop)) {
@@ -225,12 +230,16 @@ pp <- function(..., sysprop = NULL) {
     kpq <- pkpq(sysprop = arg)
     out$kpq <- kpq
     out$S <- pS(arg$sigma[1], arg$sigma[2], kpq)
-    out$A <- pA(arg$polymer.num[1], arg$polymer.num[2], kpq)
-    out$B <- pB(arg$polymer.num[1], arg$polymer.num[2], kpq)
+    out$A <- pA(arg$polymer.num[1], arg$polymer.num[2], kpq, arg$size.ratio[1], arg$size.ratio[2])
+    out$B <- pB(arg$polymer.num[1], arg$polymer.num[2], kpq, arg$size.ratio[1], arg$size.ratio[2])
     return(out)
 }
 
 gibbs <- function(phi.polymer, phi.salt, ...) {
+    #' ASSUMPTIONS
+    #' 1. the solutions are in lattice with lattice size equal to the monomer size and ion sizes.
+    #' 2. lattice size, monomer size, ion and water size are equal to 0.31 nm.
+    #' 3. 
     # ... = alpha, sigma, polymer.num, kpq
     # return F/NkT
     arg <- list(...)
@@ -583,9 +592,12 @@ critical.point.get.guess <- function(guess, ...) {
     for(i in 1:100) {
         test <- critical.point.fun_(guess, ...)
         if(anyNA(test) ||
-           any(is.nan(test))) {
+           any(is.nan(test)) ||
+           abs(test[1]) > 1e6 ||
+           abs(test[2]) > 1e6
+           ) {
             guess[1] <- guess[1]
-            guess[2] <- guess[2] * 1.001
+            guess[2] <- guess[2] * 1.01
             next
         } else 
             break
@@ -708,19 +720,8 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
     else arg <- sysprop
     
     c.point <- critical.point_(...)
-    if (DEBUG) print(c('critical point', c.point))
-    
-    # # starting point
-    # for (i in seq(1, 100, 1)) {
-    #     phi.polymer.2 <- fitting.para$sampling.start * i
-    #     test <- binodal.curve.fun_(x = binodal.guess, phi.polymer.2 = phi.polymer.2, ...)
-    #     if (anyNA(test) || is.nan(test[1]) || is.nan(test[2])) 
-    #         next
-    #     else {
-    #         if (DEBUG) print(phi.polymer.2)
-    #         fitting.para$sampling.start <-  phi.polymer.2
-    #         break}
-    # }
+    assertthat::assert_that(c.point$phi.polymer > 0)
+    # if (DEBUG) print(c('critical point', c.point))
     
     # search binodal point return c(phi.polymer, phi.salt)
     # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),

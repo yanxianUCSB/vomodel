@@ -1,41 +1,33 @@
 # EXPLORE binodal curve
 rm(list = ls())
 source('vomodel.R')
+source('para.voorn.R')
 library(yxplot)
 library(ggplot2)
 library(dplyr)
 library(rootSolve)
 library(pracma)
 library(nleqslv)
-DEBUG <- F
+DEBUG <- T
 SAVE <- T
-
-system.properties <- list(
-  polymer.num = c(1000, 1000, 1, 1, 1),
-  sigma = c(0.34, 0.34, 1, 1, 0),
-  size.ratio = c(1, 1, 1, 1, 1),
-  water.size = k.water.size
-)
-fitting.para <- list()
-fitting.para$epsilon <- 1E-8
-fitting.para$sampling.gap <- 1e-4
-fitting.para$critical.point.guess <- c(phi.polymer=0.01, phi.salt=0.15)
-fitting.para$binodal.guess <- c(1E-1, 1E-1)
 
 
 # fitting.para$binodal.guess <- c(0.05, 0.05)
 # p1 <- get.binodal.curve(20, 0, system.properties, fitting.para)
 # fitting.para$binodal.guess <- c(0.1, 0.1)
 # p3 <- get.binodal.curve(40, 0, system.properties, fitting.para)
+Chi <- system.properties$Chi
+fitting.para$critical.point.guess <- c(phi.polymer = 0.01, phi.salt = 0.01)
 
-p2 <- get.binodal.curves(seq(20, 40, 10), 0, system.properties, fitting.para)
+
+p2 <- get.binodal.curves(seq(20, 40, 10), Chi, system.properties, fitting.para)
 p3 <- do.call(rbind, lapply(seq(0.34, 0.44, 0.05), function(sigma){
     system.properties$sigma <- c(sigma, sigma, 1, 1, 0)
-    get.binodal.curve(30, 0, system.properties, fitting.para)
+    get.binodal.curve(30, Chi, system.properties, fitting.para)
 }))
 p4 <- do.call(rbind, lapply(seq(500, 1000, 250), function(polymer.num){
     system.properties$polymer.num <- c(polymer.num, polymer.num, 1, 1, 0)
-    get.binodal.curve(30, 0, system.properties, fitting.para)
+    get.binodal.curve(30, Chi, system.properties, fitting.para)
 }))
 
 
