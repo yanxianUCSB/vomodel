@@ -1,15 +1,15 @@
 # Binodal curve at different temperature
 rm(list = ls())
 source('vomodel.R')
-source('proteinRNA.para.R')
+source('para.proteinRNAChi.R')
 library(yxplot)
 library(ggplot2)
 library(dplyr)
 library(rootSolve)
 library(pracma)
 library(nleqslv)
-DEBUG <- F
-SAVE <- T
+DEBUG <- T
+SAVE <- F
 
 # system.properties <- list(
 #   polymer.num = c(1000, 1000, 1, 1, 1),
@@ -26,8 +26,8 @@ SAVE <- T
 
 
 # fitting.para$binodal.guess <- c(0.05, 0.05)
-ds <- do.call(rbind, lapply(c(20, 30, 40), function(tempC){
-    lB <- ke^2 / (kEr*kkB*(tempC+273.15))
+ds <- do.call(rbind, lapply(c(40), function(tempC){
+    lB <- ke^2 / (kEr*kkB*(tempC+273.15))  # Bjerrum length
     system.properties$sigma[2] <- system.properties$size.ratio[2]*k.water.size / lB
     # update critical.point.guess
     fitting.para$critical.point.guess <- as.numeric(fitting.para$c.point.temp.fun(tempC + 273))
@@ -39,7 +39,8 @@ ds <- do.call(rbind, lapply(c(20, 30, 40), function(tempC){
 # ds <- rbind(p1, p2, p3)
 
 g2 <- ggplot(ds, aes(y = conc.salt, group = tempC)) +
-  geom_line(aes(x = conc.p + conc.q, col = tempC), lwd = 2) +
+  # geom_line(aes(x = conc.p + conc.q, col = tempC), lwd = 2) +
+    geom_point(aes(x = conc.p + conc.q, col = tempC)) +
     scale_colour_continuous(breaks = seq(20, 40, 10), guide = 'legend') +
   labs(x = 'Polymer [mol/L]',
        y = 'Salt [mol/L]',

@@ -549,7 +549,7 @@ stupid.fsolve <- function(f, x, x.critic, epsilon = 1E-10, ...) {
 
 ## Critical point
 c.point.temp <- function(sysprop, fitting.para) {
-    temp <- seq(273.15, 333.15, 0.1)
+    temp <- seq(273.15, 333.15, 1)
     do.call(rbind, lapply(temp, function(temp) {
         alpha <- get.alpha(temp, sysprop$water.size)
         polymer.num <- sysprop$polymer.num
@@ -567,7 +567,7 @@ c.point.temp <- function(sysprop, fitting.para) {
 c.point.temp.fun <- function(c.point.temp.ds) {
     return(function(temp) {
         list(
-             phi.polymer = spline(c.point.temp.ds$temp, c.point.temp.ds$phi.polymer, xout = temp)$y,
+            phi.polymer = spline(c.point.temp.ds$temp, c.point.temp.ds$phi.polymer, xout = temp)$y,
             phi.salt = spline(c.point.temp.ds$temp, c.point.temp.ds$phi.salt, xout = temp)$y)
     })
 }
@@ -589,7 +589,7 @@ critical.point_ <- function(...) {
     return(list(phi.polymer = out$x[1], phi.salt = out$x[2]))
 }
 critical.point.get.guess <- function(guess, ...) {
-    for(i in 1:100) {
+    for(i in 1:10) {
         test <- critical.point.fun_(guess, ...)
         if(anyNA(test) ||
            any(is.nan(test)) ||
@@ -727,9 +727,8 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
     # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
     #                        seq( arg$sampling.gap * 1e3, c.point$phi.polymer, arg$sampling.gap * 1e4))
     n <- floor(0.5 * (1 + sqrt(1 + 8 * c.point$phi.polymer / arg$sampling.gap)))
-    phi.polymer.2.seq <-  arg$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5 
+    phi.polymer.2.seq <-  arg$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
     phi.polymer.2.seq <-  phi.polymer.2.seq[which(phi.polymer.2.seq >= fitting.para$sampling.start)]
-    phi.polymer.2.seq <- (phi.polymer.2.seq)
     
     # Binodal Guess
     binodal.guess <- arg$binodal.guess
@@ -753,23 +752,26 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
             ...
         )
         if (roots$x[1] > 0 &&
-            roots$x[2] > 0 &&
             roots$x[1] > phi.polymer.2 &&
+            roots$x[2] > 0 &&
+            # roots$x[2] < c.point$phi.salt &&
             max(abs(roots$fvec)) < 1 &&
-            roots$termcd == 2)
+            roots$termcd == 2) {
             binodal.guess <- roots$x
-        else {
-            binodal.guess <- binodal.guess * 1.001
+            output[[length(output) + 1]] <-
+                c(
+                    phi.polymer.1 = roots$x[1],
+                    phi.polymer.2 = phi.polymer.2,
+                    phi.salt = roots$x[2],
+                    f1 = roots$fvec[1],
+                    f2 = roots$fval[2]
+                )
+        } else {
+            if(DEBUG) print(c.point$phi.polymer)
+            if(DEBUG) print(roots)
+            binodal.guess <- binodal.guess * 1.01
             next
         }
-        output[[length(output) + 1]] <-
-            c(
-                phi.polymer.1 = roots$x[1],
-                phi.polymer.2 = phi.polymer.2,
-                phi.salt = roots$x[2],
-                f1 = roots$fvec[1],
-                f2 = roots$fval[2]
-            )
         # if(DEBUG) print(roots$x)
         # if(DEBUG) print(roots$termcd)
         # if(DEBUG) print(binodal.guess)
@@ -777,7 +779,9 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
     
     p2 <- as.data.frame.matrix(do.call(rbind, output)) %>%
         filter(phi.polymer.1 > max(phi.polymer.2))  # requiring the dense phase should be larger than dilute phase
+    
     assertthat::assert_that(nrow(p2) > 0)
+    
     ds <- data.frame(
         phi.polymer = c(p2$phi.polymer.2, rev(p2$phi.polymer.1)),
         phi.salt = c(p2$phi.salt, rev(p2$phi.salt)),
