@@ -8,7 +8,7 @@ library(dplyr)
 library(rootSolve)
 library(pracma)
 library(nleqslv)
-DEBUG <- F
+DEBUG <- T
 SAVE <- F
 
 # system.properties <- list(
