@@ -39,7 +39,7 @@ g2 <- ggplot(p20, aes(y = conc.salt)) +
 g2 <- theme.title.text.1(g2)
 
 
-
+print(g2)
 if(SAVE) {
     ggsave('test.binodal.curve.voorn.png', g2, width = 6, height = 3)
 } 
