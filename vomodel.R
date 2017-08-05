@@ -767,7 +767,8 @@ binodal.curve_ <- function( sysprop = NULL, fitting.para = NULL, ...) {
                     phi.polymer.2 = phi.polymer.2,
                     phi.salt = roots$x[2],
                     f1 = roots$fvec[1],
-                    f2 = roots$fval[2]
+                    f2 = roots$fval[2],
+                    pair = phi.polymer.2
                 )
         } else {
             if(DEBUG) print(binodal.guess)
@@ -781,6 +782,8 @@ binodal.curve_ <- function( sysprop = NULL, fitting.para = NULL, ...) {
         # if(DEBUG) print(binodal.guess)
     }
     
+    assertthat::assert_that(length(output) > 0, msg = 'binodal.curve_ failed')
+    
     p2 <- as.data.frame.matrix(do.call(rbind, output)) %>%
         filter(phi.polymer.1 > max(phi.polymer.2))  # requiring the dense phase should be larger than dilute phase
     
@@ -793,6 +796,7 @@ binodal.curve_ <- function( sysprop = NULL, fitting.para = NULL, ...) {
         levels = c('dilute', 'dense')),
         critic.polymer = c.point$phi.polymer,
         critic.salt = c.point$phi.salt,
+        pairing = c(p2$phi.polymer.2, rev(p2$phi.polymer.2)) * (p2$phi.salt[1] + 1),
         phase.separated = ifelse(nrow(p2) < 3, F, T)  # if the roots only has few rows then we say there is no binodal curve
     )
     return(ds)
