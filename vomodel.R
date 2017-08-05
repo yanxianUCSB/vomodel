@@ -26,19 +26,17 @@ get.binodal.curve <-
         temp <- tempC + 273.15
         
         kpq <- pkpq(sysprop = sysprop)
+        
         ds <- binodal.curve_(
+            sysprop = sysprop,
+            fitting.para = fitting.para,
             temp = temp,
             Chi = Chi,
             alpha = get.alpha(temp, sysprop$water.size),
             sigma = sysprop$sigma,
             polymer.num = sysprop$polymer.num,
             size.ratio = sysprop$size.ratio,
-            molar.ratio = sysprop$molar.ratio,
-            guess.critical.point = fitting.para$critical.point.guess,
-            binodal.guess = fitting.para$binodal.guess,
-            epsilon = fitting.para$epsilon,
-            sampling.gap = fitting.para$sampling.gap,
-            fitting.para = fitting.para
+            molar.ratio = sysprop$molar.ratio
         ) %>%
             mutate(
                 temp = temp,
@@ -557,7 +555,7 @@ c.point.temp <- function(sysprop, fitting.para) {
         size.ratio <- sysprop$size.ratio
         Chi <- sysprop$Chi
         molar.ratio <- sysprop$molar.ratio
-        ds <- critical.point_(guess.critical.point = fitting.para$critical.point.guess, temp = temp, polymer.num = polymer.num,
+        ds <- critical.point_(guess = fitting.para$critical.point.guess, temp = temp, polymer.num = polymer.num,
                               alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi, molar.ratio = molar.ratio)
         # if (DEBUG) print(ds)
         ds$temp <-  temp
@@ -578,10 +576,10 @@ critical.point.fun_ <- function(phis, ...) {
         gibbs.ddd(phi.polymer = phis[1], phi.salt = phis[2], ...)
     ))
 }
-critical.point_ <- function(...) {
+critical.point_ <- function(guess, ...) {
     # output list of critical points
     arg <- list(...)
-    guess <- critical.point.get.guess(arg$guess.critical.point, ...)
+    guess <- critical.point.get.guess(guess, ...)
     out <- nleqslv(
                   x = guess,
                 fn = critical.point.fun_,
@@ -708,30 +706,33 @@ binodal.curve.jacobian_ <- function(x, phi.polymer.2, ...) {
 binodal.curve.fun_ <- function(x, phi.polymer.2, ...) {
     phi.polymer.1 <- x[1]
     phi.salt <- x[2]
-    return(binodal.curve.fun(
-        c(phi.polymer.1, phi.polymer.2),
-        phi.salt = phi.salt,
-        ...
-    ))
+    phi.polymer <- c(phi.polymer.1, phi.polymer.2)
+    return(
+        c(
+            gibbs.d(phi.polymer[1], phi.salt, ...) - gibbs.d(phi.polymer[2], phi.salt, ...),
+            (phi.polymer[2] - phi.polymer[1]) * gibbs.d(phi.polymer[1], phi.salt, ...) - 
+                (gibbs(phi.polymer[2], phi.salt, ...) - gibbs(phi.polymer[1], phi.salt, ...))
+        )
+    )
 }
-binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
+binodal.curve_ <- function( sysprop = NULL, fitting.para = NULL, ...) {
     #' generate binodal curve
     if (is.null(sysprop)) arg <- list(...)
     else arg <- sysprop
     
-    c.point <- critical.point_(...)
+    c.point <- critical.point_(fitting.para$critical.point.guess, ...)
     assertthat::assert_that(c.point$phi.polymer > 0)
     # if (DEBUG) print(c('critical point', c.point))
     
     # search binodal point return c(phi.polymer, phi.salt)
     # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
     #                        seq( arg$sampling.gap * 1e3, c.point$phi.polymer, arg$sampling.gap * 1e4))
-    n <- floor(0.5 * (1 + sqrt(1 + 8 * c.point$phi.polymer / arg$sampling.gap)))
-    phi.polymer.2.seq <-  arg$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
+    n <- floor(0.5 * (1 + sqrt(1 + 8 * c.point$phi.polymer / fitting.para$sampling.gap)))
+    phi.polymer.2.seq <-  fitting.para$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
     phi.polymer.2.seq <-  phi.polymer.2.seq[which(phi.polymer.2.seq >= fitting.para$sampling.start)]
     
     # Binodal Guess
-    binodal.guess <- arg$binodal.guess
+    binodal.guess <- fitting.para$binodal.guess
     binodal.guess[2] <- c.point$phi.salt * 0.9
     
     output <- list()
@@ -748,16 +749,18 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
             binodal.guess,
             binodal.curve.fun_,
             binodal.curve.jacobian_,
-            phi.polymer.2 = phi.polymer.2,
+            phi.polymer.2 = phi.polymer.2, 
             ...
         )
         if (roots$x[1] > 0 &&
             roots$x[1] > phi.polymer.2 &&
             roots$x[2] > 0 &&
-            # roots$x[2] < c.point$phi.salt &&
+            roots$x[2] < c.point$phi.salt &&
             max(abs(roots$fvec)) < 1 &&
             roots$termcd == 2) {
+            
             binodal.guess <- roots$x
+            
             output[[length(output) + 1]] <-
                 c(
                     phi.polymer.1 = roots$x[1],
@@ -767,8 +770,9 @@ binodal.curve_ <- function(..., sysprop = NULL, fitting.para = NULL) {
                     f2 = roots$fval[2]
                 )
         } else {
-            if(DEBUG) print(c.point$phi.polymer)
-            if(DEBUG) print(roots)
+            if(DEBUG) print(binodal.guess)
+            # if(DEBUG) print(c.point$phi.polymer)
+            # if(DEBUG) print(roots)
             binodal.guess <- binodal.guess * 1.01
             next
         }
