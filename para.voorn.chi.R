@@ -1,4 +1,4 @@
-chipw <- 0.01
+chipw <- 0.0
 
 system.properties <- list(
     polymer.num   = c(1000, 1000,   1, 1, 1),
@@ -9,6 +9,7 @@ system.properties <- list(
     molar.ratio   = c(1, 1, 1, 1, 0),
     # the polycation:polyanion and cation:anion molar ratio
     water.size    = k.water.size,
+    lattice.size = k.water.size,
     Chi = matrix(c(.0,.0,0,0,chipw,
                    .0,.0,0,0,0,
                    0,0,0,0,0,

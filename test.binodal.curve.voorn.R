@@ -9,7 +9,7 @@ library(rootSolve)
 library(pracma)
 library(nleqslv)
 DEBUG <- F
-SAVE <- T
+SAVE <- F
 
 # system.properties <- list(
 #   polymer.num = c(1000, 1000, 1, 1, 1),

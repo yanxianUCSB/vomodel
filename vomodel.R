@@ -346,12 +346,14 @@ gibbs.pdfps <- function(phi.polymer, phi.salt, ...) {
 gibbs.funs <- function(phi.polymer, phi.salt, ...) {
     out <-
         expand.grid(phi.polymer = phi.polymer, phi.salt = phi.salt) %>%
+        group_by(phi.polymer) %>% 
         mutate(
             f = gibbs(phi.polymer, phi.salt, ...),
             df = gibbs.d(phi.polymer, phi.salt, ...),
             ddf = gibbs.dd(phi.polymer, phi.salt, ...),
             dddf = gibbs.ddd(phi.polymer, phi.salt, ...)
-        )
+        ) %>% 
+        ungroup()
     return(out)
 }
 binodal.curve.fun <- function(phi.polymer, ...) {
