@@ -192,7 +192,12 @@ free.energy.funs <- function(phi, phi.salt, temp, ...) {
 
 
 # Analytical
-
+# Gibbs.Funs <- R6Class(
+#     'Gibbs.Funs',
+#     private = list(
+#         
+#     )
+# )
 pkpq <- function(..., sysprop = NULL) {
     # kpq = phi_q / pho_p
     # arg <- ifelse(missing(arg), list(...), arg)
@@ -749,7 +754,7 @@ binodal.curve_ <- function( sysprop = NULL, fitting.para = NULL, ...) {
             is.nan(test[2])) {
             next
         }
-        roots <- nleqslv::nleqslv (
+        roots <- nleqslv (
             binodal.guess,
             binodal.curve.fun_,
             binodal.curve.jacobian_,

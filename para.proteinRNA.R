@@ -16,7 +16,7 @@ system.properties <- list(
 fitting.para <- list(
     epsilon = 1E-8 , 
     sampling.start = 1e-5,
-    sampling.gap = 1e-7 ,
+    sampling.gap = 1e-5 ,
     critical.point.guess = c(phi.polymer = 0.01, phi.salt = 0.001) ,
     c.point.temp.fun = c.point.temp.fun(c.point.temp(system.properties, fitting.para)) ,
     binodal.guess = 0.1,  # phi.polymer.2

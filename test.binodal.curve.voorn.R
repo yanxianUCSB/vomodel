@@ -1,7 +1,7 @@
 # Binodal curve at different temperature
 rm(list = ls())
 source('vomodel.R')
-source('para.voorn.R')
+source('para.proteinRNA.R')
 library(yxplot)
 library(ggplot2)
 library(dplyr)
@@ -32,7 +32,7 @@ p20 <- get.binodal.curve(75, system.properties$Chi, system.properties, fitting.p
 
 
 g2 <- ggplot(p20, aes(y = conc.salt)) +
-  geom_line(aes(x = phi.polymer), lwd = 2) +
+  geom_point(aes(x = phi.polymer), lwd = 2) +
   labs(x = 'Polymer [%]',
        y = 'Salt [mol/L]',
        col = expression('Temperature'~degree~C))
