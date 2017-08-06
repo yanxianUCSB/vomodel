@@ -773,7 +773,7 @@ binodal.curve_ <- function( sysprop = NULL, fitting.para = NULL, ...) {
                     pair = phi.polymer.2
                 )
         } else {
-            if(DEBUG) print(binodal.guess)
+            # if(DEBUG) print(binodal.guess)
             # if(DEBUG) print(c.point$phi.polymer)
             # if(DEBUG) print(roots)
             binodal.guess <- binodal.guess * 1.01
