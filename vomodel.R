@@ -37,7 +37,9 @@ get.binodal.curve <-
             polymer.num = sysprop$polymer.num,
             size.ratio = sysprop$size.ratio,
             molar.ratio = sysprop$molar.ratio
-        ) %>%
+        ) 
+        if (is.null(ds)) return()
+        ds <- ds %>%
             mutate(
                 temp = temp,
                 kpq = kpq,
@@ -754,7 +756,8 @@ binodal.curve_ <- function( sysprop = NULL, fitting.para = NULL, ...) {
             phi.polymer.2 = phi.polymer.2, 
             ...
         )
-        if (roots$x[1] > 0 &&
+        if (
+            roots$x[1] > 0 &&
             roots$x[1] > phi.polymer.2 &&
             roots$x[2] > 0 &&
             roots$x[2] < c.point$phi.salt &&
@@ -784,6 +787,9 @@ binodal.curve_ <- function( sysprop = NULL, fitting.para = NULL, ...) {
         # if(DEBUG) print(binodal.guess)
     }
     
+    if (length(output) == 0) {
+        return()
+    }
     assertthat::assert_that(length(output) > 0, msg = 'binodal.curve_ failed')
     
     p2 <- as.data.frame.matrix(do.call(rbind, output)) %>%
