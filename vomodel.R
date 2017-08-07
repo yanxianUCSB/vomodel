@@ -730,13 +730,18 @@ binodal.curve_ <- function( sysprop = NULL, fitting.para = NULL, ...) {
     else arg <- sysprop
     
     c.point <- critical.point_(fitting.para$critical.point.guess, ...)
-    assertthat::assert_that(c.point$phi.polymer > 0)
+    if(c.point$phi.polymer <= 0) {
+        cat('c.point$phi.polymer < 0; NULL return')
+        return()
+    } else if(c.point$phi.polymer < fitting.para$sampling.end) {
+        fitting.para$sampling.end <- c.point$phi.polymer
+    }
     # if (DEBUG) print(c('critical point', c.point))
     
     # search binodal point return c(phi.polymer, phi.salt)
     # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
     #                        seq( arg$sampling.gap * 1e3, c.point$phi.polymer, arg$sampling.gap * 1e4))
-    n <- floor(0.5 * (1 + sqrt(1 + 8 * c.point$phi.polymer / fitting.para$sampling.gap)))
+    n <- floor(0.5 * (1 + sqrt(1 + 8 * fitting.para$sampling.end / fitting.para$sampling.gap)))
     phi.polymer.2.seq <-  fitting.para$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
     phi.polymer.2.seq <-  phi.polymer.2.seq[which(phi.polymer.2.seq >= fitting.para$sampling.start)]
     

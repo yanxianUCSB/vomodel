@@ -10,8 +10,9 @@ library(rootSolve)
 library(pracma)
 library(nleqslv)
 DEBUG <- T
-SAVE <- T
+SAVE <- F
 
+fitting.para$sampling.end <- 1e-4
 function(){
 }
 test.chi.chipw <- function(DEBUG = T, SAVE = F) {
@@ -21,14 +22,16 @@ fitting.para$binodal.guess <- c(0.05, 0.03)
 
 ds <- NULL
 # Chi protein and water
-for (chipw in c(-0.01, 0, 0.05)) {
+for (chipw in c( 0, 0.001)) {
 system.properties$Chi <- matrix(c(.0,.0,0,0, chipw,
                                 .0,.0,0,0,0,
                                 0,0,0,0,0,
                                 0,0,0,0,0,
                                 chipw,0,0,0,0), 5,5)
+
 p20 <- get.binodal.curve(80, system.properties$Chi, system.properties, fitting.para) %>% 
     mutate(Chi = chipw)
+    
 ds <- rbind(ds, p20)
 }
 
