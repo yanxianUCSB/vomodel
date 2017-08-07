@@ -10,17 +10,14 @@ SAVE <<- F
 # k.phi.salt <<- k.conc.salt * 1000 * kNa * sp$polymer.num[3] * sp$size.ratio[3] * sp$water.size ^ 3 
 # k.conc.polymer  <<-  5E-6 * system.properties$MW[1] + 15E-3
 # k.phi.polymer <<- 
-get.binodal.curve_.fun <- function(x, phi.polymer, system.properties, fitting.para) {
+get.binodal.curve_.fun <- function(x, phi.polymer.2, phi.salt, system.properties, fitting.para) {
     # x[1]: phi.salt
     # x[2]: temp
-    phi.salt <- x[1]
+    phi.polymer.1 <- x[1]
     temp <- x[2]
     
-    alpha <- get.alpha(temp, size = system.properties$water.size
+    system.properties$alpha <- get.alpha(temp, system.properties$water.size)
     
-    
-    phi.polymer.1 <- x[1]
-    phi.salt <- x[2]
     phi.polymer <- c(phi.polymer.1, phi.polymer.2)
     return(
         c(
