@@ -7,13 +7,25 @@ kEr                         <<- 4 * pi * 80 * 8.85E-12 # F/m; vaccuum permitivit
 k.water.size                <<- 0.31E-9     # calculated from 18 cm^3 / mol
 k.na.size                   <<- 0.235E-9    # (Marcus 1988)
 k.cl.size                   <<- 0.318E-9    # (Marcus 1988)
-k.vol                       <<- 1           # sample volume, doesn't affect the binodal curve
 k.water.conc                <<- 1000 / 18.01528 * 1000  # water concentration
-k.dna.contour.unit.length   <<- 0.33E-9     # 0.33 nm  (Blackburn 2006)
-k.lysozyme.density          <<- 0.70E-6     # m^3/g (Perkins 1986)
-k.amino.acid.length         <<- (k.lysozyme.density * 14307 / 129 / kNa)^(1/3)
+
+
 
 ## USERS
+get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
+    dataset <- read.csv(dataset.file) %>% 
+        mutate(conc.polymer = protein * 1E-6 * system.properties$MW[1] + rna * 1E-3) %>% 
+        mutate(conc.salt = nacl * 1E-3) %>% 
+        mutate(tempC.cp = cloudpoint,
+               tempC.on = onset) %>% 
+        select(conc.polymer, conc.salt, tempC.cp, tempC.on) %>% 
+        group_by(conc.polymer, conc.salt) %>% 
+        mutate(tempC.cpm = mean(tempC.cp),
+               tempC.onm = mean(tempC.on)) %>% 
+        ungroup()
+    dataset <- dataset[!duplicated(dataset[c('conc.polymer', 'conc.salt')]), ]
+    return(dataset)
+}
 get.phase.diagram           <- function(system.properties, fitting.para) {
     p <- lapply(k.sim.temp.range, function(tempC) {
         if (fitting.para$condensation == T) {
@@ -41,7 +53,8 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
             cat('succeeded!\n')
         }
         
-        return(out)
+        if (is.null(out) || nrow(out) < 2) return(NULL)
+        else return(out)
     })
     
     out <- do.call(rbind, p) 
@@ -54,6 +67,8 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
     return(out) 
 }
 get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties) {
+    if (is.null(phase.diagram.ds)) return()
+    
     precision <- 1e-5
     
     ds <- phase.diagram.ds
@@ -89,6 +104,8 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties) {
     
 }
 get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, nacl.range = NULL) {
+    if (is.null(phase.diagram.ds)) return()
+    
     precision <- 1e-5
     
     ds <- phase.diagram.ds
@@ -667,15 +684,23 @@ critical.point.fun_        <- function(phis, ...) {
         gibbs.ddd(phi.polymer = phis[1], phi.salt = phis[2], ...)
     ))
 }
-critical.point_            <- function(guess, ...) {
+critical.point_            <- function(guess, default = NULL, ...) {
     # output list of critical points
     arg <- list(...)
     guess <- critical.point.get.guess(guess, ...)
+    
+    if (is.nan(critical.point.fun_(guess, ...))) return(default)
+    
     out <- nleqslv(
                   x = guess,
-                fn = critical.point.fun_,
+                  fn = critical.point.fun_,
                   ...)
-    return(list(phi.polymer = out$x[1], phi.salt = out$x[2]))
+    
+    result <- list(phi.polymer = out$x[1], phi.salt = out$x[2])
+    
+    if (result$phi.polymer < 0) return(default)
+    
+    return(result)
 }
 critical.point.get.guess   <- function(guess, ...) {
     for(i in 1:10) {
@@ -809,11 +834,9 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     if (is.null(sysprop)) arg <- list(...)
     else arg <- sysprop
     
-    c.point <- critical.point_(fitting.para$critical.point.guess, ...)
-    if(c.point$phi.polymer <= 0) {
-        cat('c.point$phi.polymer < 0; NULL return')
-        return()
-    } else if(c.point$phi.polymer < fitting.para$sampling.end) {
+    c.point <- critical.point_(fitting.para$critical.point.guess, default = fitting.para$default.critical.point, ...)
+    
+    if(c.point$phi.polymer < fitting.para$sampling.end) {
         fitting.para$sampling.end <- c.point$phi.polymer
     }
     # if (DEBUG) print(c('critical point', c.point))
