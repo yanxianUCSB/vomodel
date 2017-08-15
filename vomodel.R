@@ -44,8 +44,13 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
         return(out)
     })
     
-    out <- do.call(rbind, p) %>% 
+    out <- do.call(rbind, p) 
+    
+    if (is.null(out)) return()
+    
+    out <- out %>% 
         filter(phase.separated)
+    
     return(out) 
 }
 get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties) {

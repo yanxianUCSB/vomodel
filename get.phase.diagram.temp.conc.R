@@ -13,6 +13,7 @@ SAVE <<- T
 k.conc.salt  <<- 0.030
 k.conc.polymer  <<-  5E-6 * system.properties$MW[1] + 15E-3
 k.sim.temp.range  <<- seq(4, 40, 1)
+k.NULLPUNISH  <<- 1E10
 # DEBUG.k.pd.sim <<- pd.sim
 
 # sp <- system.properties
@@ -41,6 +42,7 @@ chi.fn <- function(Chi.vec, ds.exp, system.properties, fitting.para) {
     print(Chi)
     
     ds.sim      <- get.phase.diagram(system.properties, fitting.para)
+    if (is.null(ds.sim)) return(k.NULLPUNISH)
     
     cat('current binodal curve \n')
     print(head(ds.sim[c('phi.polymer', 'phi.salt')]))
@@ -63,7 +65,7 @@ chi.fn <- function(Chi.vec, ds.exp, system.properties, fitting.para) {
     return(sum(c(rmse.conc, rmse.nacl)))
 }
 
-ds.exp <- get.phase.diagram.exp(dataset.file='~/Box/anywhere/dataset.csv')
+ds.exp <- get.phase.diagram.exp(dataset.file=choose.files(caption='Select Exp Dataset', multi = F))
 
 out <- multiStartoptim(c(-0, 0), chi.fn, ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
 

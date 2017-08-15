@@ -25,8 +25,8 @@ get.phase.diagram.exp <- function(dataset.file = 'dataset.csv') {
 }
 
 Chi <-  matrix(rep(0, 25), 5, 5)
-Chi[1,2] <- 0
-Chi[1,5] <- 0
+Chi[1,2] <- 0.006828794
+Chi[1,5] <- -0.9999767
 Chi[2,1] <- Chi[1,2]
 Chi[5,1] <- Chi[1,5]
 
