@@ -1,15 +1,16 @@
 # Voorn-Overbeek Modeling
 kNa                         <<- 6.02E23
-kkB                         <<- 1.38064852E-23  # Boltzmann Constant
-ke                          <<- 1.60217662E-19  # Elementary charge
+kkB                         <<- 1.38064852E-23         # Boltzmann Constant
+ke                          <<- 1.60217662E-19         # Elementary charge
 kEr                         <<- 4 * pi * 80 * 8.85E-12 # F/m; vaccuum permitivity = 8.85E-12
-k.water.size                <<- 0.31E-9  # calculated from 18 cm^3 / mol
-k.na.size                   <<- 0.235E-9  # (Marcus 1988)
-k.cl.size                   <<- 0.318E-9   # (Marcus 1988)
-k.vol                       <<- 1  # sample volume, doesn't affect the binodal curve
+
+k.water.size                <<- 0.31E-9     # calculated from 18 cm^3 / mol
+k.na.size                   <<- 0.235E-9    # (Marcus 1988)
+k.cl.size                   <<- 0.318E-9    # (Marcus 1988)
+k.vol                       <<- 1           # sample volume, doesn't affect the binodal curve
 k.water.conc                <<- 1000 / 18.01528 * 1000  # water concentration
-k.dna.contour.unit.length   <<- 0.33E-9  # 0.33 nm  (Blackburn 2006)
-k.lysozyme.density          <<- 0.70E-6  # m^3/g (Perkins 1986)
+k.dna.contour.unit.length   <<- 0.33E-9     # 0.33 nm  (Blackburn 2006)
+k.lysozyme.density          <<- 0.70E-6     # m^3/g (Perkins 1986)
 k.amino.acid.length         <<- (k.lysozyme.density * 14307 / 129 / kNa)^(1/3)
 
 ## USERS
