@@ -4,54 +4,58 @@ source('para.proteinRNA.R')
 library(dplyr)
 library(nleqslv)
 library(ggplot2)
+library(yxplot)
 
 DEBUG <<- T
-SAVE <<- F
+SAVE <<- T
 
-k.conc.salt  <<- 0.030
-k.conc.polymer  <<-  5E-6 * system.properties$MW[1] + 15E-3
-k.sim.temp.range  <<- seq(4, 40, 1)
+k.conc.salt       <<- 0.030
+k.conc.polymer    <<-  5E-6 * system.properties$MW[1] + 15E-3
+k.sim.temp.range  <<- seq(4, 40, 5)
 
-get.phase.diagram.exp <- function(dataset.file = 'dataset.csv') {
-    dataset.file <- '~/Box/anywhere/dataset.csv'
-    dataset <- read.csv(dataset.file) %>% 
-        mutate(conc.polymer = protein * 1E-6 * system.properties$MW[1] + rna * 1E-3) %>% 
-        mutate(conc.salt = nacl * 1E-3) %>% 
-        mutate(tempC.cp = cloudpoint,
-               tempC.on = onset) %>% 
-        select(conc.polymer, conc.salt, tempC.cp, tempC.on)
-    return(dataset)
-    
-}
+# Water size
+watersize <<- 3.1E-10
+k.amino.acid.length       <<- watersize
+k.dna.contour.unit.length <<- watersize
+k.na.size                 <<- watersize * 10
+k.cl.size                 <<- watersize * 10
+k.water.size              <<- watersize
+system.properties$size.ratio <-  c(k.amino.acid.length, k.dna.contour.unit.length, k.na.size, k.cl.size, k.water.size) / k.water.size
 
+
+# Chi
 Chi <-  matrix(rep(0, 25), 5, 5)
-Chi[1,2] <- 0.006828794
-Chi[1,5] <- -0.9999767
+Chi[1,2] <- -0.15
+Chi[1,5] <- 0.08
 Chi[2,1] <- Chi[1,2]
 Chi[5,1] <- Chi[1,5]
 
 system.properties$Chi <- Chi
+fitting.para$binodal.guess <- 0.1
 
-phase.diagram.exp <- get.phase.diagram.exp()
+phase.diagram.exp <- get.phase.diagram.exp(dataset.file = 'C:/Users/Yetsun/Box/anywhere/dataset.csv')
 
 ds <- get.phase.diagram(system.properties, fitting.para)
 
-ds2 <- get.phase.diagram.temp.conc(ds, system.properties)
+ds2 <- get.phase.diagram.temp.conc(ds, system.properties, k.conc.salt = k.conc.salt)
 
-ds3 <- get.phase.diagram.temp.nacl(ds, system.properties)
+ds3 <- get.phase.diagram.temp.nacl(ds, system.properties, k.conc.polymer = k.conc.polymer)
 
+assertthat::assert_that(!is.null(ds))
 
 g <- ggplot(ds %>% filter(conc.salt < 0.1), aes(x = conc.p, y = conc.salt, group = tempC)) +
     geom_point(aes(col = tempC))
 
-g2 <- ggplot(ds2, aes(x = conc.polymer, y = tempC)) + geom_point(aes(col = 'sim')) +
+g2 <- ggplot(ds2, aes(x = conc.polymer, y = tempC)) + 
+    geom_line(aes(col = 'sim'), lwd = 2) +
     geom_point(data = phase.diagram.exp %>% filter(conc.salt == 0.03), aes(x = conc.polymer, y = tempC.cp, col = 'exp.cp')) +
     geom_point(data = phase.diagram.exp %>% filter(conc.salt == 0.03), aes(x = conc.polymer, y = tempC.on, col = 'exp.on')) +
     labs(x = 'Conc.polymer[mg/mL]', 
          y = 'Temperature [C]', 
          col = '')
 
-g3 <- ggplot(ds3, aes(x = conc.salt, y = tempC)) + geom_point(aes(col = 'sim')) +
+g3 <- ggplot(ds3, aes(x = conc.salt, y = tempC)) + 
+    geom_line(aes(col = 'sim'), lwd = 2) +
     geom_point(data = phase.diagram.exp %>% filter(abs(conc.polymer - 0.125) < 1e-3), aes(x = conc.salt, y = tempC.cp, col = 'exp.cp')) +
     geom_point(data = phase.diagram.exp %>% filter(abs(conc.polymer - 0.125) < 1e-3), aes(x = conc.salt, y = tempC.on, col = 'exp.on')) +
     labs(x = 'NaCl [M]', 
@@ -60,8 +64,12 @@ g3 <- ggplot(ds3, aes(x = conc.salt, y = tempC)) + geom_point(aes(col = 'sim')) 
 
 print(ds2)
 print(g)
+# readline('>>> ')
 print(g2)
+stop()
+readline('>>> ')
 print(g3)
+readline('>>> ')
 
 if(SAVE) {
     g2 <- theme.background.1(g2)
@@ -71,3 +79,4 @@ if(SAVE) {
     g3 <- theme.title.text.2(g3)
     ggsave( 'get.phase.diagram.temp.nacl.png', g3, width = 5, height = 5)
 }
+

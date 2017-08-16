@@ -67,10 +67,11 @@ fn <- function(vec, ds.exp, system.properties, fitting.para) {
     return(sum(c(rmse.conc, rmse.nacl)))
 }
 
-ds.exp <- get.phase.diagram.exp(dataset.file=choose.files(caption='Select Exp Dataset', multi = F))
+# ds.exp <- get.phase.diagram.exp(dataset.file=choose.files(caption='Select Exp Dataset', multi = F))
+ds.exp <- get.phase.diagram.exp(dataset.file='~/Box/anywhere/dataset.csv')
 
-# out <- multiStartoptim(c(3.1E-10, 0, 0), fn, ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
-out <- optim(c(3.364E-10, -0.06, 0.1), fn, ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
+out <- multiStartoptim(c(3.1E-10, 0, 0), fn, ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
+# out <- optim(c(3.364E-10, -0.06, 0.1), fn, ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
 
 if (SAVE) {
     cat('saving data >>>\n')

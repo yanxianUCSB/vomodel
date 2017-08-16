@@ -26,17 +26,20 @@ get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
     dataset <- dataset[!duplicated(dataset[c('conc.polymer', 'conc.salt')]), ]
     return(dataset)
 }
+
 get.phase.diagram           <- function(system.properties, fitting.para) {
+    
     p <- lapply(k.sim.temp.range, function(tempC) {
-        if (fitting.para$condensation == T) {
+        
+        if (fitting.para$condensation) {
             lB <- 0.7E-9  # Bjerrum length at 298K
             system.properties$sigma[2] <- system.properties$size.ratio[2]*k.water.size / lB
-        }
-        if (fitting.para$counterion.release == T) {
+        } 
+        if (fitting.para$counterion.release) {
             # update Bjerrum length and the effective charge density of RNA
             lB <- ke^2 / (kEr*kkB*(tempC+273.15))
             system.properties$sigma[2] <- system.properties$size.ratio[2]*k.water.size / lB
-        }
+        }  
         # update critical.point.guess
         fitting.para$critical.point.guess <- as.numeric(fitting.para$c.point.temp.fun(tempC + 273))
         
@@ -50,7 +53,8 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
         out <- get.binodal.curve(tempC, Chi = system.properties$Chi, system.properties, fitting.para, unit = 'mol')
         
         if(DEBUG) {
-            cat('succeeded!\n')
+            cat(paste0('critical.salt = ', out$critic.salt[1], '\n'))
+            cat('succeeded!\n\n')
         }
         
         if (is.null(out) || nrow(out) < 2) return(NULL)
@@ -66,7 +70,7 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
     
     return(out) 
 }
-get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties) {
+get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.conc.salt = 0.030) {
     if (is.null(phase.diagram.ds)) return()
     
     precision <- 1e-5
@@ -80,19 +84,19 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties) {
         ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute')
         ds.t2 <- ds %>% filter(tempC == tempc, phase == 'dense')
         ds3 <- rbind(
-            data.frame(conc.salt = 0.030) %>%
+            data.frame(conc.salt = k.conc.salt) %>%
                 mutate(
                     conc.polymer = spline(ds.t1$conc.salt, ds.t1$conc.polymer, xout = conc.salt)$y,
                     phase = 'dilute'
                 ),
-            data.frame(conc.salt = 0.030) %>%
+            data.frame(conc.salt = k.conc.salt) %>%
                 mutate(
                     conc.polymer = spline(ds.t2$conc.salt, ds.t2$conc.polymer, xout = conc.salt)$y,
                     phase = 'dense'
                 )
         ) %>%
             mutate(
-                conc.salt = 0.030,
+                conc.salt = k.conc.salt,
                 tempC = tempc
             ) 
     })
@@ -103,7 +107,7 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties) {
     return(ds4)
     
 }
-get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, nacl.range = NULL) {
+get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, nacl.range = NULL, k.conc.polymer = 0.125) {
     if (is.null(phase.diagram.ds)) return()
     
     precision <- 1e-5
@@ -657,15 +661,17 @@ stupid.fsolve              <- function(f, x, x.critic, epsilon = 1E-10, ...) {
 c.point.temp               <- function(sysprop, fitting.para) {
     temp <- seq(273.15, 333.15, 1)
     do.call(rbind, lapply(temp, function(temp) {
-        alpha <- get.alpha(temp, sysprop$water.size)
+        alpha       <- get.alpha(temp, sysprop$water.size)
         polymer.num <- sysprop$polymer.num
-        sigma <- sysprop$sigma
-        size.ratio <- sysprop$size.ratio
-        Chi <- sysprop$Chi
+        sigma       <- sysprop$sigma
+        size.ratio  <- sysprop$size.ratio
+        Chi         <- sysprop$Chi
         molar.ratio <- sysprop$molar.ratio
-        ds <- critical.point_(guess = fitting.para$critical.point.guess, temp = temp, polymer.num = polymer.num,
-                              alpha = alpha, sigma = sigma, size.ratio = size.ratio, Chi = Chi, molar.ratio = molar.ratio)
-        # if (DEBUG) print(ds)
+        ds <- critical.point_(guess = fitting.para$critical.point.guess, 
+                              temp = temp, polymer.num = polymer.num,
+                              alpha = alpha, sigma = sigma, size.ratio = size.ratio,
+                              Chi = Chi, molar.ratio = molar.ratio,
+                              default = list(phi.polymer=NA, phi.salt=NA))
         ds$temp <-  temp
         return(as.data.frame(ds))
     }))
@@ -839,7 +845,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     if(c.point$phi.polymer < fitting.para$sampling.end) {
         fitting.para$sampling.end <- c.point$phi.polymer
     }
-    # if (DEBUG) print(c('critical point', c.point))
+    # if (DEBUG) print(c('critical salt = ', c.point$phi.salt))
     
     # search binodal point return c(phi.polymer, phi.salt)
     # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
