@@ -910,10 +910,14 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     # if (DEBUG) print(c('critical salt = ', c.point$phi.salt))
     
     # search binodal point return c(phi.polymer, phi.salt)
-    # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
-    #                        seq( arg$sampling.gap * 1e3, c.point$phi.polymer, arg$sampling.gap * 1e4))
+    # phi.polymer.2.seq <- seq(fitting.para$sampling.start, fitting.para$sampling.end, fitting.para$sampling.gap)
+    
+    # phi.polymer.2.seq <- c(seq( fitting.para$sampling.gap, fitting.para$sampling.gap*1e3, fitting.para$sampling.gap),
+                           # seq( fitting.para$sampling.gap * 1e3, c.point$phi.polymer, fitting.para$sampling.gap * 1e5))
+    
     n <- floor(0.5 * (1 + sqrt(1 + 8 * fitting.para$sampling.end / fitting.para$sampling.gap)))
     phi.polymer.2.seq <-  fitting.para$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
+    
     phi.polymer.2.seq <-  phi.polymer.2.seq[which(phi.polymer.2.seq >= fitting.para$sampling.start)]
     
     # Binodal Guess
@@ -938,6 +942,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
             binodal.curve.jacobian_,
             phi.polymer.2 = phi.polymer.2, 
             control = list(allowSingular = T, xtol = 1e-10),
+            global = 'pwldog',
             ...
         )
         
@@ -965,9 +970,10 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
             
         } else {
             # if(DEBUG) print(binodal.guess)
-            # if(DEBUG) print(phi.polymer.2)
-            # if(DEBUG) print(c.point$phi.polymer)
-            # if(DEBUG) print(roots)
+            if(DEBUG) print(phi.polymer.2)
+            if(DEBUG) print(c.point)
+            if(DEBUG) print(roots)
+            if(DEBUG) k.binodal.guess.offset <- 1.05
             if (guess.i == 1) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
             else if (guess.i == 2) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
             else if (guess.i == 3) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
@@ -1006,7 +1012,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
 
 ## Spinodal curve
 
-spinodal.curve <- function(phi.polymer, phi.salt, x.axis = 'phi.polymer', temp, 
+spinodal.curve <- function(phi.polymer, phi.salt, x.axis = 'phi.polymer', temp,
                            alpha, sigma, Chi = 0, polymer.num, size.ratio, curve.type = 'spinodal') {
         if (x.axis == 'phi.polymer') {
             paras <- phi.salt
