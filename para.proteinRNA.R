@@ -5,7 +5,7 @@ k.amino.acid.length         <<- (k.lysozyme.density * 14307 / 129 / kNa)^(1/3)
 
 system.properties <- list(
     polymer.num   = c(207, 900e3 / 306.2,   1, 1, 1),
-    sigma         = c(11 / 207, 0.5,   1, 1, 0),
+    sigma         = c(11 / 207, 1,   1, 1, 0),
     size.ratio    = c(k.amino.acid.length, k.dna.contour.unit.length, k.na.size, k.cl.size, k.water.size) / k.water.size,
     MW            = c(22e3, 900e3),
     # charge.ratio  = c(1, 1),
@@ -20,14 +20,14 @@ system.properties <- list(
 )
 fitting.para <- list(
     epsilon = 1E-8 , 
-    sampling.start = 1e-8,
+    sampling.start = 1e-5,
     sampling.end = 5e-0,
-    sampling.gap = 1e-7 ,
-    critical.point.guess = c(phi.polymer = 0.01, phi.salt = 0.001) ,
+    sampling.gap = 1e-5 ,
+    critical.point.guess = c(phi.polymer = 0.001, phi.salt = 0.003) ,
     c.point.temp.fun = c.point.temp.fun(c.point.temp(system.properties, fitting.para)) ,
     binodal.guess = 0.1,  # phi.polymer.2
     condensation = T,
     counterion.release = T,
-    default.critical.point = list(phi.polymer=0.1, phi.salt=0.1)
+    default.critical.point = list(phi.polymer=0.1, phi.salt=0.01)
 )
 

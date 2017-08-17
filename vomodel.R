@@ -11,7 +11,7 @@ k.water.conc                <<- 1000 / 18.01528 * 1000  # water concentration
 
 k.vol                       <<- 120E-9
 
-k.binodal.guess.offset      <<- 1.1
+k.binodal.guess.offset      <<- 1.05
 
 
 
@@ -329,9 +329,27 @@ pkpq                       <- function(..., sysprop = NULL) {
         arg <- list(...)
     else
         arg <- sysprop
+    size.1 <- arg$size.ratio[1]
+    size.2 <- arg$size.ratio[2]
+    sigma.1 <- arg$sigma[1]
+    sigma.2 <- arg$sigma[2]
+    M.1 <- arg$polymer.num[1]
+    M.2 <- arg$polymer.num[2]
+    N.1 <- arg$molar.ratio[1]
+    N.2 <- arg$molar.ratio[2]
     
-    return( (arg$size.ratio[2] * arg$sigma[2] * arg$polymer.num[2] * arg$molar.ratio[2]) /
-        (arg$size.ratio[1] * arg$sigma[1] * arg$polymer.num[1] * arg$molar.ratio[1]) )
+    out1 <- (N.2 * M.2 * size.2^3 ) / (N.1 * M.1 * size.1^3 )
+    out2 <- (N.2 * M.2 * size.2 * sigma.2) / (N.1 * M.1 * size.1 * sigma.1)
+    
+    # print(out1)
+    # print(out2)
+    # print(sigma.2)
+    # print(sigma.1)
+    # print(N.2)
+    # print(N.1)
+    # print(size.2 / size.1)
+    # out2 <- 0.014
+    return( out1 * DEBUG.kpq.fac )
 }
 pS                         <- function(sigma.p, sigma.q, kpq) {
         return((sigma.p + sigma.q * kpq) / (1 + kpq))
@@ -531,6 +549,20 @@ binodal.curve.fun          <- function(phi.polymer, ...) {
         (phi.polymer[2] - phi.polymer[1]) * gibbs.d(phi.polymer[1], ...) - 
             (gibbs(phi.polymer[2], ...) - gibbs(phi.polymer[1], ...))
     )
+}
+
+
+## phi to phi.charged and phi.noncharge
+
+get.phi.charged            <- function(phis, system.properties, ...) {
+    sigma <- system.properties$sigma
+    out <- phis * sigma
+    return(out)
+}
+get.phi.noncharged         <- function(phis, system.properties, ...) {
+    sigma <- system.properties$sigma
+    out <- phis * (1 - sigma)
+    return(out)
 }
 
 
@@ -867,18 +899,24 @@ binodal.curve.fun.temp.phi      <- function(x, phi.polymer.1, phi.salt, sysprop)
 binodal.curve.jacobian_         <- function(x, phi.polymer.2, ...) {
     phi.polymer.1 <- x[1]
     phi.salt <- x[2]
+    
+    phi1 <- phi.polymer.1
+    phi2 <- phi.polymer.2
+    ddgdphi1 <- gibbs.dd(phi.polymer.1, phi.salt, ...)
+    dgdphi1 <- gibbs.d(phi.polymer.1, phi.salt, ...)
+    dgdphi2 <- gibbs.d(phi.polymer.2, phi.salt, ...)
+    pfps.phi1 <- gibbs.pfps(phi.polymer.1, phi.salt, ...)
+    pfps.phi2 <- gibbs.pfps(phi.polymer.2, phi.salt, ...)
+    pdfps.phi1 <- gibbs.pdfps(phi.polymer.1, phi.salt, ...)
+    pdfps.phi2 <- gibbs.pdfps(phi.polymer.2, phi.salt, ...)
+    
     return(matrix(
         c(
-            gibbs.dd(phi.polymer.1, phi.salt, ...),
+            ddgdphi1,
+            dgdphi1 - dgdphi2,
             
-            gibbs.d(phi.polymer.1, phi.salt, ...) - gibbs.d(phi.polymer.2, phi.salt, ...),
-            
-            gibbs.pdfps(phi.polymer.1, phi.salt, ...) - gibbs.pdfps(phi.polymer.2, phi.salt, ...),
-            
-            (phi.polymer.2 - phi.polymer.1) * gibbs.pdfps(phi.polymer.2, phi.salt, ...) -
-                (
-                    gibbs.pfps(phi.polymer.2, phi.salt, ...) - gibbs.pfps(phi.polymer.1, phi.salt, ...)
-                )
+            pdfps.phi1 - pdfps.phi2,
+            (phi2 - phi1) * pdfps.phi1 - (pfps.phi2 - pfps.phi1)
         ),
         nrow = 2,
         ncol = 2
@@ -889,13 +927,19 @@ binodal.curve.fun_              <- function(x, phi.polymer.2, ...) {
     phi.salt <- x[2]
     phi.polymer <- c(phi.polymer.1, phi.polymer.2)
     
-    return(
-        c(
-            gibbs.d(phi.polymer[1], phi.salt, ...) - gibbs.d(phi.polymer[2], phi.salt, ...),
-            (phi.polymer[2] - phi.polymer[1]) * gibbs.d(phi.polymer[1], phi.salt, ...) - 
-                (gibbs(phi.polymer[2], phi.salt, ...) - gibbs(phi.polymer[1], phi.salt, ...))
-        )
+    phi1 <- phi.polymer[1]
+    phi2 <- phi.polymer[2]
+    gphi1 <- gibbs(phi.polymer[1], phi.salt, ...)
+    gphi2 <- gibbs(phi.polymer[2], phi.salt, ...)
+    dgdphi1 <- gibbs.d(phi.polymer[1], phi.salt, ...)
+    dgdphi2 <- gibbs.d(phi.polymer[2], phi.salt, ...)
+    
+    out <- c(
+        dgdphi1 - dgdphi2,
+        (phi2 - phi1) * dgdphi1 - (gphi2 - gphi1)
     )
+    
+    return(out)
 }
 binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL, ...) {
     #' generate binodal curve
@@ -970,10 +1014,11 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
             
         } else {
             # if(DEBUG) print(binodal.guess)
-            if(DEBUG) print(phi.polymer.2)
-            if(DEBUG) print(c.point)
-            if(DEBUG) print(roots)
-            if(DEBUG) k.binodal.guess.offset <- 1.05
+            # if(DEBUG) print(phi.polymer.2)
+            # if(DEBUG) print(c.point)
+            # if(DEBUG) print(roots)
+            # if(DEBUG) k.binodal.guess.offset <- 1.05
+            
             if (guess.i == 1) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
             else if (guess.i == 2) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
             else if (guess.i == 3) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
