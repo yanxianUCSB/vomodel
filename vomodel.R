@@ -751,7 +751,7 @@ critical.point_            <- function(guess, default = NULL, ...) {
                   x = guess,
                   fn = critical.point.fun_,
                   jac = critical.point.jac,
-                  control = list(allowSingular = T, xtol = 1e-16),
+                  control = list(allowSingular = T, xtol = 1e-10),
                   global = 'pwldog',
                   ...)
     
@@ -880,6 +880,7 @@ binodal.curve.fun_              <- function(x, phi.polymer.2, ...) {
     phi.polymer.1 <- x[1]
     phi.salt <- x[2]
     phi.polymer <- c(phi.polymer.1, phi.polymer.2)
+    
     return(
         c(
             gibbs.d(phi.polymer[1], phi.salt, ...) - gibbs.d(phi.polymer[2], phi.salt, ...),
@@ -937,11 +938,11 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
             roots$x[2] > 0 &&
             roots$x[2] < c.point$phi.salt &&
             max(abs(roots$fvec)) < 1 &&
-            roots$termcd == 2) {
+            roots$termcd %in% c(2, 3)) {
             
             binodal.guess <- roots$x
             
-            output[[length(output) + 1]] <-
+            output[[length(output) + 1]] <- 
                 c(
                     phi.polymer.1 = roots$x[1],
                     phi.polymer.2 = phi.polymer.2,
@@ -950,6 +951,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
                     f2 = roots$fval[2],
                     pair = phi.polymer.2
                 )
+            
         } else {
             if(DEBUG) print(binodal.guess)
             if(DEBUG) print(phi.polymer.2)
