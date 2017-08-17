@@ -67,7 +67,7 @@ chi.fn <- function(Chi.vec, ds.exp, system.properties, fitting.para) {
 
 ds.exp <- get.phase.diagram.exp(dataset.file=choose.files(caption='Select Exp Dataset', multi = F))
 
-out <- multiStartoptim(c(-0, 0), chi.fn, ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
+out <- multiStartoptim(c(0.1, -0.03), chi.fn, ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
 
 if (SAVE) {
     cat('saving data >>>\n')

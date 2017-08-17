@@ -11,6 +11,8 @@ k.water.conc                <<- 1000 / 18.01528 * 1000  # water concentration
 
 k.vol                       <<- 120E-9
 
+k.binodal.guess.offset      <<- 1.1
+
 
 
 ## USERS
@@ -31,8 +33,11 @@ get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
 
 get.phase.diagram           <- function(system.properties, fitting.para) {
     
+    Chi298 <- system.properties$Chi
+    
     p <- lapply(k.sim.temp.range, function(tempC) {
         
+        # Sigma
         if (fitting.para$condensation) {
             lB <- 0.7E-9  # Bjerrum length at 298K
             system.properties$sigma[2] <- system.properties$size.ratio[2]*k.water.size / lB
@@ -41,7 +46,11 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
             # update Bjerrum length and the effective charge density of RNA
             lB <- ke^2 / (kEr*kkB*(tempC+273.15))
             system.properties$sigma[2] <- system.properties$size.ratio[2]*k.water.size / lB
-        }  
+        }
+        
+        # Chi
+        system.properties$Chi <- Chi298 * 298 / (tempC + 273)
+        
         # update critical.point.guess
         fitting.para$critical.point.guess <- as.numeric(fitting.para$c.point.temp.fun(tempC + 273))
         
@@ -68,7 +77,8 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
     if (is.null(out)) return()
     
     out <- out %>% 
-        filter(phase.separated)
+        filter(phase.separated) %>% 
+        mutate(conc.polymer = conc.p * system.properties$MW[1] + conc.q * system.properties$MW[2])
     
     return(out) 
 }
@@ -77,10 +87,7 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.c
     
     precision <- 1e-5
     
-    ds <- phase.diagram.ds
-    ds <- 
-        as.data.frame(ds) %>% 
-        mutate(conc.polymer = conc.p * system.properties$MW[1] + conc.q * system.properties$MW[2])
+    ds <- as.data.frame(phase.diagram.ds)
     
     ds2 <- lapply(unique(ds$tempC), function(tempc) {
         ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute')
@@ -101,11 +108,11 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.c
                 conc.salt = k.conc.salt,
                 tempC = tempc
             ) 
+        return(ds3)
     })
     
     ds3 <- do.call(rbind, ds2) 
-    
-    ds4 <- ds3 %>% filter(conc.polymer < 20, conc.polymer > 0) %>% select(conc.polymer, tempC)
+    ds4 <- ds3 %>% filter(conc.polymer < 500, conc.polymer > 0) %>% select(conc.polymer, tempC)
     return(ds4)
     
 }
@@ -142,6 +149,7 @@ get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, nac
     })
     
     ds3 <- do.call(rbind, ds2) 
+    if (is.null(ds3)) return()
     
     ds4 <- ds3 %>% filter(conc.polymer < 20, conc.polymer > 0) %>% select(conc.salt, tempC)
     return(ds4)
@@ -899,7 +907,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     if(c.point$phi.polymer < fitting.para$sampling.end) {
         fitting.para$sampling.end <- c.point$phi.polymer
     }
-    if (DEBUG) print(c('critical salt = ', c.point$phi.salt))
+    # if (DEBUG) print(c('critical salt = ', c.point$phi.salt))
     
     # search binodal point return c(phi.polymer, phi.salt)
     # phi.polymer.2.seq <- c(seq( arg$sampling.gap, arg$sampling.gap*1e3, arg$sampling.gap),
@@ -911,6 +919,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     # Binodal Guess
     binodal.guess <- fitting.para$binodal.guess
     binodal.guess[2] <- c.point$phi.salt * 0.9
+    guess.i <- 1
     
     output <- list()
     
@@ -928,17 +937,17 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
             binodal.curve.fun_,
             binodal.curve.jacobian_,
             phi.polymer.2 = phi.polymer.2, 
-            control = list(allowSingular = T),
+            control = list(allowSingular = T, xtol = 1e-10),
             ...
         )
         
         if (
             roots$x[1] > 0 &&
-            roots$x[1] > phi.polymer.2 &&
+            roots$x[1] > phi.polymer.2 + 1e-10 &&
             roots$x[2] > 0 &&
             roots$x[2] < c.point$phi.salt &&
             max(abs(roots$fvec)) < 1 &&
-            roots$termcd %in% c(2, 3)) {
+            roots$termcd %in% c(2)) {
             
             binodal.guess <- roots$x
             
@@ -952,12 +961,19 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
                     pair = phi.polymer.2
                 )
             
+            guess.i <- 1
+            
         } else {
-            if(DEBUG) print(binodal.guess)
-            if(DEBUG) print(phi.polymer.2)
+            # if(DEBUG) print(binodal.guess)
+            # if(DEBUG) print(phi.polymer.2)
             # if(DEBUG) print(c.point$phi.polymer)
             # if(DEBUG) print(roots)
-            binodal.guess[2] <- binodal.guess[2] * 1.05
+            if (guess.i == 1) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
+            else if (guess.i == 2) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
+            else if (guess.i == 3) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
+            else binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
+            guess.i <- guess.i + 1
+            
             next
         }
         # if(DEBUG) print(roots$x)
