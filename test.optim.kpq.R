@@ -12,8 +12,8 @@ library(nleqslv)
 DEBUG <- T
 SAVE <- F
 # DEBUG.good.size.p <- 1
-DEBUG.good.kpqfac <- 10
-DEBUG.good.guess <- 0.007
+DEBUG.good.kpqfac <- 15
+DEBUG.good.guess <- 0.008
 
 
 test.binodal.curve <- function(system.properties, fitting.para, DEBUG.guess, tempC = 10, ...) {
@@ -54,7 +54,8 @@ test.binodal.curve <- function(system.properties, fitting.para, DEBUG.guess, tem
 # Find guess
 for (k in 1:1000) {
     
-    DEBUG.guess.seq <- seq(1e-3, 1e-2, 1e-3)
+    
+    DEBUG.guess.seq <- seq(1e-3, 1e-2, 1e-4)
     y <- sapply(DEBUG.guess.seq, function(i) {
         DEBUG.kpq.fac <<- DEBUG.good.kpqfac
         # system.properties$size.ratio[1] <- DEBUG.good.size.p
@@ -72,7 +73,7 @@ for (k in 1:1000) {
     
     # Find kpq.fac
     
-    DEBUG.guess.seq <- seq(1, 20, 2)
+    DEBUG.guess.seq <- seq(1, 20, 1e-1)
     y <- sapply(DEBUG.guess.seq, function(i) {
         DEBUG.kpq.fac <<- i
         # system.properties$size.ratio[1] <- DEBUG.good.size.p

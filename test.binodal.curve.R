@@ -1,8 +1,9 @@
 # Binodal curve at different temperature
 rm(list = ls())
 source('vomodel.R')
-source('proteinRNA.para.R')
+source('para.proteinRNA.R')
 library(yxplot)
+library(yxhelper)
 library(ggplot2)
 library(dplyr)
 library(rootSolve)
@@ -11,60 +12,70 @@ library(nleqslv)
 DEBUG <- T
 SAVE <- F
 
-# system.properties <- list(
-#   polymer.num = c(1000, 1000, 1, 1, 1),
-#   sigma = c(0.34, 0.34, 1, 1, 0),
-#   size.ratio = c(1, 1, 1, 1, 1),
-#   water.size = k.water.size,
-#   molar.ratio = rep(1, 5)
-# )
-# fitting.para <- list()
-# fitting.para$epsilon <- 1E-8
-# fitting.para$sampling.gap <- 1e-4
-# fitting.para$critical.point.guess <- c(phi.polymer=0.01, phi.salt=0.15)
-# fitting.para$binodal.guess <- c(1E-1, 1E-1)
+sysprop.sigma.fix <- function(tempC, system.properties, fitting.para) {
+    # Sigma
+    if (fitting.para$condensation) {
+        lB <- 0.7E-9  # Bjerrum length at 298K
+        system.properties$sigma[2] <- system.properties$size.ratio[2]*k.water.size / lB
+    } 
+    if (fitting.para$counterion.release) {
+        # update Bjerrum length and the effective charge density of RNA
+        lB <- ke^2 / (kEr*kkB*(tempC+273.15))
+        system.properties$sigma[2] <- system.properties$size.ratio[2]*k.water.size / lB
+    } 
+    return(system.properties$sigma)
+}
 
+test.binodal.curve.3temps <- function(system.properties, fitting.para, ...) {
+    
+    system.properties$sigma <- sysprop.sigma.fix(tempC = 10, system.properties, fitting.para)
+    
+    p2 <- get.binodal.curves(10, system.properties$Chi, system.properties, fitting.para) %>% 
+        mutate(conc.polymer = conc.p + conc.q)
+    
+    g4 <- ggplot(p2, aes(y = conc.salt, group = tempC)) +
+        geom_point(aes(x = conc.p + conc.q, col = tempC), lwd = 2) +
+        scale_colour_continuous(breaks = seq(20, 40, 10), guide = 'legend') +
+        labs(x = 'Polymer [mol/L]',
+             y = 'Salt [mol/L]',
+             col = 'Temperature C' )
+    g4 <- theme.title.text.1(g4)
+    # g <- ggplot(p2) +
+        # geom_line(aes(x = seqr(range(conc.polymer), 1e-4), y = spline(conc.polymer, conc.salt, xout = seqr(range(conc.polymer), 1e-4))$y, col = tempC))
+    # print(g)
+    print(g4)
+}
+test.binodal.curve.phi.3temps <- function(system.properties, fitting.para, ...) {
+    
+    system.properties$sigma <- sysprop.sigma.fix(tempC = 10, system.properties, fitting.para)
+    
+    p2 <- get.binodal.curves(10, system.properties$Chi, system.properties, fitting.para)
+    g4 <- ggplot(p2, aes(y = phi.salt, group = tempC)) +
+        geom_point(aes(x = phi.polymer, col = tempC), lwd = 2) +
+        scale_colour_continuous(breaks = seq(20, 40, 10), guide = 'legend') +
+        labs(x = 'Polymer ',
+             y = 'Salt ',
+             col = 'Temperature C' )
+    g4 <- theme.title.text.1(g4)
+    print(g4)
+}
+test.binodal.curve.20 <- function(system.properties, fitting.para, ...) {
+    p2 <- get.binodal.curves(20, system.properties$Chi, system.properties, fitting.para)
+    print(names(p2))
+    g4 <- ggplot(p2, aes(y = conc.salt, group = tempC)) +
+        geom_point(aes(x = conc.p + conc.q, col = tempC), lwd = 2) +
+        scale_colour_continuous(breaks = seq(20, 40, 10), guide = 'legend') +
+        labs(x = 'Polymer [mol/L]',
+             y = 'Salt [mol/L]',
+             col = 'Temperature C' )
+    g4 <- theme.title.text.1(g4)
+}
 
-fitting.para$binodal.guess <- c(0.05, 0.05)
-p1 <- get.binodal.curve(20, system.properties$Chi, system.properties, fitting.para)
-fitting.para$binodal.guess <- c(0.1, 0.1)
-p3 <- get.binodal.curve(40, system.properties$Chi, system.properties, fitting.para)
-
-p2 <- get.binodal.curves(seq(20, 40, 10), system.properties$Chi, system.properties, fitting.para)
-p3 <- do.call(rbind, lapply(seq(0.34, 0.44, 0.05), function(sigma){
-    system.properties$sigma <- c(sigma, sigma, 1, 1, 0)
-    get.binodal.curve(30, system.properties$Chi, system.properties, fitting.para)
-}))
-p4 <- do.call(rbind, lapply(seq(500, 1000, 250), function(polymer.num){
-    system.properties$polymer.num <- c(polymer.num, polymer.num, 1, 1, 0)
-    get.binodal.curve(30, system.properties$Chi, system.properties, fitting.para)
-}))
-
-
-# g2 <- ggplot(p2, aes(y = conc.salt, group = tempC)) +
-#   geom_line(aes(x = conc.p + conc.q, col = tempC), lwd = 2) +
-#     scale_colour_continuous(breaks = seq(20, 40, 10), guide = 'legend') +
-#   labs(x = 'Polymer [mol/L]',
-#        y = 'Salt [mol/L]',
-#        col = expression('Temperature'~degree~C))
-# g2 <- theme.title.text.1(g2)
-# 
-# g3 <- ggplot(p3, aes(y = conc.salt, group = sigma.p)) +
-#   geom_line(aes(x = conc.p + conc.q, col = sigma.p), lwd = 2) +
-#     scale_colour_continuous(breaks = seq(0.34, 0.44, 0.05), guide = 'legend') +
-#   labs(x = 'Polymer [mol/L]',
-#        y = 'Salt [mol/L]',
-#        col = expression(sigma) )
-# g3 <- theme.title.text.1(g3)
-
-g4 <- ggplot(p4, aes(y = conc.salt, group = length.p)) +
-  geom_line(aes(x = conc.p + conc.q, col = length.q), lwd = 2) +
-    scale_colour_continuous(breaks = seq(500, 1000, 250), guide = 'legend') +
-  labs(x = 'Polymer [mol/L]',
-       y = 'Salt [mol/L]',
-       col = 'Poly. Num.' )
-g4 <- theme.title.text.1(g4)
-
+DEBUG.kpq.fac              <- 20
+fitting.para$binodal.guess <- 0.05
+system.properties$Chi[1, 2] <- 0.1
+system.properties$Chi[2, 1] <- 0.1
+test.binodal.curve.phi.3temps(system.properties, fitting.para)
 
 if(SAVE) {
     ggsave('test.binodal.curve.temp.png', g2, width = 5, height = 5)

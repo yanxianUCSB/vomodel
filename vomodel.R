@@ -339,16 +339,8 @@ pkpq                       <- function(..., sysprop = NULL) {
     N.2 <- arg$molar.ratio[2]
     
     out1 <- (N.2 * M.2 * size.2^3 ) / (N.1 * M.1 * size.1^3 )
-    out2 <- (N.2 * M.2 * size.2 * sigma.2) / (N.1 * M.1 * size.1 * sigma.1)
+    # out2 <- (N.2 * M.2 * size.2 * sigma.2) / (N.1 * M.1 * size.1 * sigma.1)
     
-    # print(out1)
-    # print(out2)
-    # print(sigma.2)
-    # print(sigma.1)
-    # print(N.2)
-    # print(N.1)
-    # print(size.2 / size.1)
-    # out2 <- 0.014
     return( out1 * DEBUG.kpq.fac )
 }
 pS                         <- function(sigma.p, sigma.q, kpq) {
@@ -1016,13 +1008,12 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
             # if(DEBUG) print(binodal.guess)
             # if(DEBUG) print(phi.polymer.2)
             # if(DEBUG) print(c.point)
-            # if(DEBUG) print(roots)
+            # if(DEBUG) print(roots$termcd)
+            # if(DEBUG) if(roots$termcd == 1) print(roots)
             # if(DEBUG) k.binodal.guess.offset <- 1.05
             
-            if (guess.i == 1) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
-            else if (guess.i == 2) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
-            else if (guess.i == 3) binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
-            else binodal.guess[2] <- binodal.guess[2] * k.binodal.guess.offset
+            if (guess.i == 1) binodal.guess[2] <- binodal.guess[2] * 1.05
+            else binodal.guess[2] <- binodal.guess[2] * 1.05
             guess.i <- guess.i + 1
             
             next

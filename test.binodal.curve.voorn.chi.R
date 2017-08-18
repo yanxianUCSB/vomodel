@@ -29,9 +29,9 @@ test.chi.chipw <- function(DEBUG = T, SAVE = F) {
                                         0,0,0,0,0,
                                         chipw,0,0,0,0), 5,5)
         
-        p20 <- get.binodal.curve(80, system.properties$Chi, system.properties, fitting.para) %>% 
-            mutate(Chi = chipw)
-            
+        p20 <- get.binodal.curve(80, system.properties$Chi, system.properties, fitting.para) 
+        if (is.null(p20)) return(NULL)
+        p20 <- p20 %>% mutate(Chi = chipw)
         ds <- rbind(ds, p20)
     }
     
@@ -45,7 +45,6 @@ test.chi.chipw <- function(DEBUG = T, SAVE = F) {
              y = 'Salt [%]',
              col = 'Chi pw')
     g2 <- theme.title.text.1(g2)
-    
     
     print(g2)
     if(SAVE) {
