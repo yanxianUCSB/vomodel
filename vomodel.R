@@ -341,7 +341,7 @@ pkpq                       <- function(..., sysprop = NULL) {
     out1 <- (N.2 * M.2 * size.2^3 ) / (N.1 * M.1 * size.1^3 )
     # out2 <- (N.2 * M.2 * size.2 * sigma.2) / (N.1 * M.1 * size.1 * sigma.1)
     
-    return( out1 * DEBUG.kpq.fac )
+    return( out1 )
 }
 pS                         <- function(sigma.p, sigma.q, kpq) {
         return((sigma.p + sigma.q * kpq) / (1 + kpq))
@@ -387,14 +387,14 @@ gibbs                      <- function(phi.polymer, phi.salt, ...) {
     kpq <- para$kpq
     phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
     return(
-        (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
+        # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
             -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
                 para$A * phi.polymer * log(phi.polymer) +
                 para$B * phi.polymer +
                 phi.salt * log(0.5 * phi.salt) +
                 (1 - phi.polymer - phi.salt) * log(1 - phi.polymer - phi.salt) +
                 t(phi) %*% arg$Chi %*% phi
-        )
+        # )
     )
 }
 gibbs.d                    <- function(phi.polymer, phi.salt, ...) {
@@ -406,7 +406,7 @@ gibbs.d                    <- function(phi.polymer, phi.salt, ...) {
     kpq <- para$kpq
     phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
     return(
-        (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
+        # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
             -alfa * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 * para$S +
                 para$A * log(phi.polymer) + para$A +
                 para$B -
@@ -416,7 +416,7 @@ gibbs.d                    <- function(phi.polymer, phi.salt, ...) {
                                  (Chi[1,4]+Chi[4,1]+Chi[2,4]+Chi[4,2])*phi[4] + 
                                  (Chi[1,5]+Chi[5,1]+Chi[2,5]+Chi[5,2])*phi[5])
                 # 2*Chi[1,1]*kpq/(1+kpq)^2 * phi.polymer + 2/(1+kpq)*Chi[1,1:5]%*%phi - 2/(1+kpq)*Chi[1,1]*phi[1]
-        )
+        # )
     )
 }
 gibbs.dd                   <- function(phi.polymer, phi.salt, ...) {
