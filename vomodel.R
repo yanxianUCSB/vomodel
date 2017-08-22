@@ -1,3 +1,7 @@
+library(nleqslv)
+library(dplyr)
+library(pracma)
+
 # Voorn-Overbeek Modeling
 kNa                         <<- 6.02E23
 kkB                         <<- 1.38064852E-23         # Boltzmann Constant
@@ -386,6 +390,7 @@ gibbs                      <- function(phi.polymer, phi.salt, ...) {
     para <- pp(sysprop = arg)
     kpq <- para$kpq
     phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
+    
     return(
         # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
             -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
@@ -691,17 +696,11 @@ yx.nr                      <- function(f, x, J, ..., epsilon = 1E-10, maxiter = 
         invjac <- inv(((jacobian)))
         # new.guess <- guess + c(1, -1) * (guess[2]-guess[1])/maxiter
         f1 <- f(guess, ...)
-        if (DEBUG)
-            print(c(' f1', f1))
         new.guess <- guess - 0.1 * invjac %*% f1
-        if (DEBUG)
-            print(c('invjac %*% f1', invjac %*% f1))
         if (abs(new.guess[1] - guess[1]) < epsilon &&
             abs(new.guess[2] - guess[2]) < epsilon) {
             break
         } else {
-            if (DEBUG)
-                print('guess missed')
         }
     }
     if (iter >= maxiter) {
