@@ -326,8 +326,8 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
             } else {
                 # print(phi.polymer.2)
                 # print(c.point)
-                print(roots$termcd)
-                print(binodal.guess)
+                # print(roots$termcd)
+                # print(binodal.guess)
                 # if(roots$termcd == 1) print(roots)
                 # if(DEBUG) k.binodal.guess.offset <- 1.05
                 if (guess.i == 1) 
@@ -364,7 +364,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     
     return(ds)
 }
-get.binodal.curve           <- function(tempC, Chi = 0, 
+get.binodal.curve           <- function(tempC, 
                                         sysprop, fitting.para, 
                                         condensation = T,
                                         counterion.release = T,
@@ -376,6 +376,7 @@ get.binodal.curve           <- function(tempC, Chi = 0,
     
     sysprop$alpha <- get.alpha(temp, k.water.size)
     
+    
     # Condensation
     if (condensation) {
         lB <- 0.7E-9  # Bjerrum length at 298K
@@ -386,6 +387,10 @@ get.binodal.curve           <- function(tempC, Chi = 0,
         lB <- ke^2 / (kEr*kkB*(tempC+273.15))
         sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
     } 
+    
+    # Chi
+    Chi298 <- sysprop$Chi
+    sysprop$Chi <- Chi298 * 298 / (tempC + 273)
     
     kpq <- pkpq(sysprop = sysprop)
     
@@ -431,10 +436,129 @@ get.binodal.curve           <- function(tempC, Chi = 0,
     }
     return(ds)
 }
+get.phase.diagram           <- function(system.properties, fitting.para) {
+    
 
+    
+    p <- lapply(seq(4, 40, 1), function(tempC) {
+        
+        
+        # update critical.point.guess
+        # fitting.para$critical.point.guess <- as.numeric(fitting.para$c.point.temp.fun(tempC + 273))
+        
+            cat(paste0('Temp [C]: ', tempC, '\n'))
+            cat('fitting >>>\n')
+            
+            out <- get.binodal.curve(tempC, sysprop = system.properties, 
+                                   fitting.para = fitting.para, 
+                                   condensation = T, counterion.release = T)
+        
+            cat('succeeded!\n\n')
+        if (is.null(out) || nrow(out) < 2) return(NULL)
+        else return(out)
+    })
+    
+    out <- do.call(rbind, p) 
+    
+    if (is.null(out)) return()
+    
+    out <- out %>% 
+        filter(phase.separated) %>% 
+        mutate(conc.polymer = conc.p * system.properties$MW[1] + conc.q * system.properties$MW[2])
+    
+    return(out) 
+}
+
+get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.conc.salt = 0.030) {
+    if (is.null(phase.diagram.ds)) return()
+    
+    precision <- 1e-5
+    
+    ds <- as.data.frame(phase.diagram.ds)
+    
+    ds2 <- lapply(unique(ds$tempC), function(tempc) {
+        ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute')
+        ds.t2 <- ds %>% filter(tempC == tempc, phase == 'dense')
+        ds3 <- rbind(
+            data.frame(conc.salt = k.conc.salt) %>%
+                mutate(
+                    conc.polymer = spline(ds.t1$conc.salt, ds.t1$conc.polymer, xout = conc.salt)$y,
+                    phase = 'dilute'
+                ),
+            data.frame(conc.salt = k.conc.salt) %>%
+                mutate(
+                    conc.polymer = spline(ds.t2$conc.salt, ds.t2$conc.polymer, xout = conc.salt)$y,
+                    phase = 'dense'
+                )
+        ) %>%
+            mutate(
+                conc.salt = k.conc.salt,
+                tempC = tempc
+            ) 
+        return(ds3)
+    })
+    
+    ds3 <- do.call(rbind, ds2) 
+    ds4 <- ds3 %>% filter(conc.polymer < 500, conc.polymer > 0) %>% select(conc.polymer, tempC)
+    return(ds4)
+    
+}
+get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, nacl.range = NULL, k.conc.polymer = 0.125) {
+    if (is.null(phase.diagram.ds)) return()
+    
+    precision <- 1e-5
+    
+    ds <- phase.diagram.ds
+    ds <- 
+        as.data.frame(ds) %>% 
+        mutate(conc.polymer = conc.p * system.properties$MW[1] + conc.q * system.properties$MW[2])
+    
+    ds2 <- lapply(unique(ds$tempC), function(tempc) {
+        ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute') 
+        
+        if (min(ds.t1$conc.salt) > k.conc.salt) return()
+        
+        # if (DEBUG){
+        #     plot(ds.t1$conc.polymer, ds.t1$conc.salt)
+        #     readline('>>>')
+        # }
+        ds3 <- rbind(
+            data.frame(conc.polymer = k.conc.polymer) %>%
+                mutate(
+                    conc.salt = spline(ds.t1$conc.polymer, ds.t1$conc.salt, xout = conc.polymer)$y,
+                    phase = 'dilute'
+                )
+        ) %>%
+            mutate(
+                conc.polymer = k.conc.polymer,
+                tempC = tempc
+            ) 
+    })
+    
+    ds3 <- do.call(rbind, ds2) 
+    if (is.null(ds3)) return()
+    
+    ds4 <- ds3 %>% filter(conc.polymer < 20, conc.polymer > 0) %>% select(conc.salt, tempC)
+    return(ds4)
+    
+}
+get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
+    dataset <- read.csv(dataset.file) %>% 
+        mutate(conc.polymer = protein * 1E-6 * system.properties$MW[1] + rna * 1E-3) %>% 
+        mutate(conc.salt = nacl * 1E-3) %>% 
+        mutate(tempC.cp = cloudpoint,
+               tempC.on = onset) %>% 
+        select(conc.polymer, conc.salt, tempC.cp, tempC.on) %>% 
+        group_by(conc.polymer, conc.salt) %>% 
+        mutate(tempC.cpm = mean(tempC.cp),
+               tempC.onm = mean(tempC.on)) %>% 
+        ungroup()
+    dataset <- dataset[!duplicated(dataset[c('conc.polymer', 'conc.salt')]), ]
+    return(dataset)
+}
 
 source('para.proteinRNA.R')
-chipq <- -0
+chipq <- -100
 chipw <- 0
 system.properties$Chi <- matrix(c(
     0, chipq, 0,0,chipw,
@@ -447,10 +571,12 @@ print(get.alpha(173, system.properties$water.size))
 # fitting.para$binodal.guess <- c(1e-2, 1e-2)
 fitting.para$binodal.guess <- c(1e-2, 1e-2)
 # system.properties$sigma[2] <- c( 0.5)
-d <- get.binodal.curve(-100, sysprop = system.properties, fitting.para = fitting.para, condensation = F, counterion.release = F)
-
+# d <- get.binodal.curve(20, sysprop = system.properties, fitting.para = fitting.para, condensation = T, counterion.release = T)
+ds <- get.phase.diagram(system.properties, fitting.para)
+saveRDS(ds, 'out.test.ds.data')
+ds <- readRDS('out.test.ds.data')
 library(yxplot)
 library(ggplot2)
 # g <- yxplot.quick(d$conc.mass.polymer, d$conc.salt)
-g <- yxplot.quick(d$phi.polymer, d$phi.salt)
+g <- yxplot.quick(ds$phi.polymer, ds$phi.salt)
 print(g)
