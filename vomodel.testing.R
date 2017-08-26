@@ -1,4 +1,5 @@
 # Voorn-Overbeek Modeling
+rm(list = ls())
 kNa                         <<- 6.02E23
 kkB                         <<- 1.38064852E-23         # Boltzmann Constant
 ke                          <<- 1.60217662E-19         # Elementary charge
@@ -69,6 +70,11 @@ get.alpha                   <- function(temp, size) {
     alpha <-
         2 / 3 * sqrt(pi) * ((ke ^ 2 / (kEr * kkB * temp)) / size) ^ (3 / 2)
 }
+get.temp                    <- function(alpha, size) {
+    a <- 
+        alpha / (2/3*sqrt(pi)) ^ (-3/2) * size
+    temp <- ke^2/(kEr*kkB) / a
+}
 
 gibbs                      <- function(phi.polymer, phi.salt, ...) {
     #' ASSUMPTIONS
@@ -82,8 +88,9 @@ gibbs                      <- function(phi.polymer, phi.salt, ...) {
     para <- pp(sysprop = arg)
     kpq <- para$kpq
     phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
+    # temp <- get.temp(alpha, k.water.size)
     return(
-        # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
+        # (k.vol * kkB * temp) / k.water.size ^ 3 * (
         -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
             para$A * phi.polymer * log(phi.polymer) +
             para$B * phi.polymer +
@@ -101,16 +108,19 @@ gibbs.d                    <- function(phi.polymer, phi.salt, ...) {
     para <- pp(sysprop = arg)
     kpq <- para$kpq
     phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
+    # temp <- get.temp(alpha, k.water.size)
     return(
-        # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
+        # (k.vol * kkB * temp) / k.water.size ^ 3 * (
         -alfa * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 * para$S +
             para$A * log(phi.polymer) + para$A +
             para$B -
             log(1 - phi.polymer - phi.salt) - 1 +
-            2*phi.polymer*(1/(1+kpq)^2)*(Chi[1,1]+Chi[1,2]+Chi[2,1]+Chi[2,2]) +
-            (1/(1+kpq))*((Chi[1,3]+Chi[3,1]+Chi[2,3]+Chi[3,2])*phi[3] + 
-                             (Chi[1,4]+Chi[4,1]+Chi[2,4]+Chi[4,2])*phi[4] + 
-                             (Chi[1,5]+Chi[5,1]+Chi[2,5]+Chi[5,2])*phi[5])
+            4 * Chi[1, 2] * kpq / (1+kpq)^2 * phi.polymer
+            # 2 * Chi[1, 5] * 1   / (1+kpq)   * phi[5]
+            # 2*phi.polymer*(1/(1+kpq)^2)*(Chi[1,1]+Chi[1,2]+Chi[2,1]+Chi[2,2]) +
+            # (1/(1+kpq))*((Chi[1,3]+Chi[3,1]+Chi[2,3]+Chi[3,2])*phi[3] +
+            #                  (Chi[1,4]+Chi[4,1]+Chi[2,4]+Chi[4,2])*phi[4] +
+            #                  (Chi[1,5]+Chi[5,1]+Chi[2,5]+Chi[5,2])*phi[5])
         # 2*Chi[1,1]*kpq/(1+kpq)^2 * phi.polymer + 2/(1+kpq)*Chi[1,1:5]%*%phi - 2/(1+kpq)*Chi[1,1]*phi[1]
         # )
     )
@@ -210,7 +220,7 @@ binodal.curve.fun_              <- function(x, phi.polymer.2, ...) {
     
     return(out)
 }
-binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL, ...) {
+binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL) {
     #' generate binodal curve
     if (is.null(sysprop)) arg <- list(...)
     else arg <- sysprop
@@ -229,93 +239,111 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     # seq( fitting.para$sampling.gap * 1e3, c.point$phi.polymer, fitting.para$sampling.gap * 1e5))
     
     n <- floor(0.5 * (1 + sqrt(1 + 8 * fitting.para$sampling.end / fitting.para$sampling.gap)))
-    phi.polymer.2.seq <-  fitting.para$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
+    phi2.seq <-  fitting.para$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
+    phi2.seq <-  phi2.seq[which(phi2.seq >= fitting.para$sampling.start)]
     
-    phi.polymer.2.seq <-  phi.polymer.2.seq[which(phi.polymer.2.seq >= fitting.para$sampling.start)]
     
     # Binodal Guess
-    binodal.guess <- fitting.para$binodal.guess
-    # binodal.guess[2] <- c.point$phi.salt
-    # print(binodal.guess)
-    guess.i <- 1
+    binodal.guess0 <- fitting.para$binodal.guess
+    # binodal.guess0[2] <- c.point$phi.salt
     
-    output <- list()
-    
-    for (phi.polymer.2 in phi.polymer.2.seq) {
+    for (i in seq(1, 10, 1)) {
         
-        test <- binodal.curve.fun_(x = binodal.guess, phi.polymer.2 = phi.polymer.2,
-                                   alpha = sysprop$alpha,
-                                   sigma = sysprop$sigma,
-                                   Chi = sysprop$Chi,
-                                   polymer.num = sysprop$polymer.num,
-                                   size.ratio = sysprop$size.ratio,
-                                   molar.ratio = sysprop$molar.ratio)
+        binodal.guess <- binodal.guess0*i
         
-        if (anyNA(test) ||
-            is.nan(test[1]) ||
-            is.nan(test[2])) {
-            next
-        }
+        guess.i <- 1
+        phi.salt.old <- 0
+        phi.1.old <- 1
         
-        roots <- nleqslv (
-            binodal.guess,
-            binodal.curve.fun_,
-            # binodal.curve.jacobian_,
-            phi.polymer.2 = phi.polymer.2, 
-            # control = list(allowSingular = T, xtol = 1e-10),
-            method = 'Newton',
-            global = 'cline',
-            alpha = sysprop$alpha,
-            sigma = sysprop$sigma,
-            Chi = sysprop$Chi,
-            polymer.num = sysprop$polymer.num,
-            size.ratio = sysprop$size.ratio,
-            molar.ratio = sysprop$molar.ratio
-            )
+        output <- list()
         
-        if (
-            roots$x[1] > 0 &&
-            roots$x[1] > phi.polymer.2 + 1e-10 &&
-            roots$x[2] > 0 &&
-            # roots$x[2] < c.point$phi.salt &&
-            max(abs(roots$fvec)) < 1 &&
-            roots$termcd %in% c(1, 2)) {
+        for (phi.polymer.2 in phi2.seq) {
             
-            binodal.guess <- roots$x
-            
-            output[[length(output) + 1]] <- 
-                c(
-                    phi.polymer.1 = roots$x[1],
-                    phi.polymer.2 = phi.polymer.2,
-                    phi.salt = roots$x[2],
-                    f1 = roots$fvec[1],
-                    f2 = roots$fval[2],
-                    pair = phi.polymer.2
+            # protect nleqslv from receiving NaN
+            test <- binodal.curve.fun_(x = binodal.guess, phi.polymer.2 = phi.polymer.2,
+                                       alpha = sysprop$alpha,
+                                       sigma = sysprop$sigma,
+                                       Chi = sysprop$Chi,
+                                       polymer.num = sysprop$polymer.num,
+                                       size.ratio = sysprop$size.ratio,
+                                       molar.ratio = sysprop$molar.ratio)
+            if (anyNA(test) || is.nan(test[1]) || is.nan(test[2])) {
+                next
+            }
+            # nleqslv solving binodal curve points
+            roots <- nleqslv (
+                binodal.guess,
+                binodal.curve.fun_,
+                # binodal.curve.jacobian_,
+                phi.polymer.2 = phi.polymer.2, 
+                # control = list(allowSingular = T, xtol = 1e-10),
+                method = 'Newton',
+                global = 'cline',
+                alpha = sysprop$alpha,
+                sigma = sysprop$sigma,
+                Chi = sysprop$Chi,
+                polymer.num = sysprop$polymer.num,
+                size.ratio = sysprop$size.ratio,
+                molar.ratio = sysprop$molar.ratio
                 )
             
-            guess.i <- 1
+            # filter 
+            # if (roots$x[2] < phi.salt.old || 
+            #     roots$x[1] > phi.1.old
+            #     ) break()
             
-        } else {
-            # if(DEBUG) print(binodal.guess)
-            # print(phi.polymer.2)
-            # print(c.point)
-            # print(roots$termcd)
-            # if(roots$termcd == 1) print(roots)
-            # if(DEBUG) k.binodal.guess.offset <- 1.05
-            if (guess.i == 1) binodal.guess[2] <- binodal.guess[2] * 1.05
-            else binodal.guess[2] <- binodal.guess[2] * 1.05
-            guess.i <- guess.i + 1
-            
-            next
+            if (
+                roots$x[2] > phi.salt.old &&
+                roots$x[1] < phi.1.old &&
+                roots$x[1] > 0 &&
+                roots$x[1] > phi.polymer.2 + 1e-8 &&
+                roots$x[2] > 0 &&
+                # roots$x[2] < c.point$phi.salt &&
+                max(abs(roots$fvec)) < 1 &&
+                roots$termcd %in% c(1)
+                ) {
+                
+                
+                binodal.guess <- roots$x
+                # print(phi.polymer.2)
+                # print(roots)
+                
+                output[[length(output) + 1]] <- 
+                    c(
+                        phi.polymer.1 = roots$x[1],
+                        phi.polymer.2 = phi.polymer.2,
+                        phi.salt = roots$x[2],
+                        f1 = roots$fvec[1],
+                        f2 = roots$fval[2],
+                        pair = phi.polymer.2
+                    )
+                
+                guess.i <- 1
+                phi.salt.old <- roots$x[2]
+                phi.1.old <- roots$x[1]
+                
+            # modify guess and re compute
+            } else {
+                # print(phi.polymer.2)
+                # print(c.point)
+                print(roots$termcd)
+                print(binodal.guess)
+                # if(roots$termcd == 1) print(roots)
+                # if(DEBUG) k.binodal.guess.offset <- 1.05
+                if (guess.i == 1) 
+                    binodal.guess[2] <- binodal.guess[2] * 1.05
+                else 
+                    binodal.guess[2] <- binodal.guess[2] * 1.05
+                guess.i <- guess.i + 1
+                next
+            }
         }
-        # if(DEBUG) print(roots$x)
-        # if(DEBUG) print(roots$termcd)
-        # if(DEBUG) print(binodal.guess)
+        
+        if (length(output) > 4) {
+            break
+        }
     }
     
-    if (length(output) == 0) {
-        return()
-    }
     assertthat::assert_that(length(output) > 0, msg = 'binodal.curve_ failed')
     
     p2 <- as.data.frame.matrix(do.call(rbind, output)) %>%
@@ -333,17 +361,96 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
         pairing = c(p2$phi.polymer.2, rev(p2$phi.polymer.2)) * (p2$phi.salt[1] + 1),
         phase.separated = ifelse(nrow(p2) < 3, F, T)  # if the roots only has few rows then we say there is no binodal curve
     )
+    
+    return(ds)
+}
+get.binodal.curve           <- function(tempC, Chi = 0, 
+                                        sysprop, fitting.para, 
+                                        condensation = T,
+                                        counterion.release = T,
+                                        unit = 'mol') {
+    #' get binodal curve by Voorn Overbeek Model 3D component system
+    #' temp in degree C
+    #' Chi = 0 or 5 * 5 matrix
+    temp <- tempC + 273.15
+    
+    sysprop$alpha <- get.alpha(temp, k.water.size)
+    
+    # Condensation
+    if (condensation) {
+        lB <- 0.7E-9  # Bjerrum length at 298K
+        sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
+    } 
+    if (counterion.release) {
+        # update Bjerrum length and the effective charge density of RNA
+        lB <- ke^2 / (kEr*kkB*(tempC+273.15))
+        sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
+    } 
+    
+    kpq <- pkpq(sysprop = sysprop)
+    
+    ds <- binodal.curve_(sysprop = sysprop, fitting.para = fitting.para) 
+    if (is.null(ds)) return()
+    
+    ds <- ds %>%
+        mutate(
+            temp = temp,
+            kpq = kpq,
+            sigma.p = sysprop$sigma[1],
+            sigma.q = sysprop$sigma[2],
+            length.p = sysprop$polymer.num[1],
+            length.q = sysprop$polymer.num[2]
+        )
+    
+    if (unit == 'mol') {
+        ds <- ds %>%
+            rowwise() %>%
+            mutate(
+                tempC = tempC,
+                conc.salt = phi.salt / (
+                    kNa * sysprop$polymer.num[3] *
+                        sysprop$size.ratio[3] *
+                        sysprop$water.size ^ 3
+                ) / 1000,
+                # mol/L
+                conc.p = phi.polymer / (1 + kpq) / (
+                    kNa * sysprop$polymer.num[1] *
+                        sysprop$size.ratio[1] *
+                        sysprop$water.size ^ 3
+                ) / 1000,
+                conc.q = phi.polymer * kpq / (1 + kpq) / (
+                    kNa * sysprop$polymer.num[2] *
+                        sysprop$size.ratio[2] *
+                        sysprop$water.size ^ 3
+                ) / 1000
+            ) %>%
+            ungroup() %>% 
+            mutate(
+                conc.mass.polymer = conc.p * sysprop$MW[1] + conc.q * sysprop$MW[2]
+            )
+    }
     return(ds)
 }
 
-source('para.voorn.R')
-alpha <- 0.2
-fitting.para$binodal.guess <- c(0.01, 0.02)
-system.properties$alpha <- alpha
-system.properties$sigma[1:2] <- 0.9
-d <- binodal.curve_(sysprop = system.properties, fitting.para = fitting.para)
+
+source('para.proteinRNA.R')
+chipq <- -0
+chipw <- 0
+system.properties$Chi <- matrix(c(
+    0, chipq, 0,0,chipw,
+    chipq,0,0,0,0,
+    0,0,0,0,0,
+    0,0,0,0,0,
+    chipw,0,0,0,0
+), 5, 5)
+print(get.alpha(173, system.properties$water.size))
+# fitting.para$binodal.guess <- c(1e-2, 1e-2)
+fitting.para$binodal.guess <- c(1e-2, 1e-2)
+# system.properties$sigma[2] <- c( 0.5)
+d <- get.binodal.curve(-100, sysprop = system.properties, fitting.para = fitting.para, condensation = F, counterion.release = F)
 
 library(yxplot)
 library(ggplot2)
+# g <- yxplot.quick(d$conc.mass.polymer, d$conc.salt)
 g <- yxplot.quick(d$phi.polymer, d$phi.salt)
 print(g)
