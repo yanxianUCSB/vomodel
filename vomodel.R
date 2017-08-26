@@ -390,7 +390,6 @@ gibbs                      <- function(phi.polymer, phi.salt, ...) {
     para <- pp(sysprop = arg)
     kpq <- para$kpq
     phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
-    
     return(
         # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
             -alpha * (para$S * phi.polymer + phi.salt) ^ 1.5 +
@@ -976,8 +975,9 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
             binodal.curve.fun_,
             binodal.curve.jacobian_,
             phi.polymer.2 = phi.polymer.2, 
-            control = list(allowSingular = T, xtol = 1e-10),
-            global = 'pwldog',
+            # control = list(allowSingular = T, xtol = 1e-10),
+            method = 'Newton',
+            global = 'cline',
             ...
         )
         

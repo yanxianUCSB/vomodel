@@ -52,6 +52,8 @@ ds <- phi.salt.crit.get(phi.polymer)
 dst <- data.frame(par = unlist(ds['par',]), value = unlist(ds['value',]))
 g <- yxplot.quick(phi.polymer, dst$par) +
   labs(x = 'Polymer Conc [% v.v]',
-       y = 'Critical NaCl Conc [% v.v]') 
+       y = 'Critical NaCl Conc [% v.v]') +
+    geom_point(aes(x = phi.polymer, y = dst$par, col = log(dst$value)))
+print(g)
 ggsave('test.voorn.salt.crit.png', width = 5, height = 5)
 

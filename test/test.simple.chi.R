@@ -1,5 +1,5 @@
 rm(list = ls())
-source('vomodel.R')
+source('vomodel.testing.R')
 library(yxplot)
 library(ggplot2)
 
@@ -10,7 +10,7 @@ g.simple.el <- function(x, y, chi) {
     -3.622*(0.15*x + y)^1.5 
 }
 g.simple.chi <- function(x, y, chi) {
-    (0.5*x)^2 * chi
+    (0.5*x) * (0.5*x) * chi * 2
 }
 g.simple <- function(x, y, chi) {
     # 2 * 0.5*x * 0.001 * log(0.5*x) + 2 * 0.5*y * log(0.5*y) + (1-x-y)*log(1-x-y) -
@@ -19,21 +19,33 @@ g.simple <- function(x, y, chi) {
 }
 dg.simple <- function(x, y, chi) {
     0.001 * log(0.5*x) + 0.001 -log(1-x-y) -1 -
-        3.622*1.5*0.15*(0.15*x+y)^0.5 + 2*0.5*chi*(0.5*x)
+        3.622*1.5*0.15*(0.15*x+y)^0.5 + 2*0.5*chi*(0.5*x) * 2
 }
 
 f.simple <- function(x2y, x1, chi) {
     return(
         c(
             dg.simple(x2y[1], x2y[2], chi) - dg.simple(x1, x2y[2], chi),
-            (x2y[1] - x1) * dg.simple(x1, x2y[2], chi) - 
+            (x2y[1] - x1) * dg.simple(x2y[1], x2y[2], chi) - 
                 (g.simple(x2y[1], x2y[2], chi) - g.simple(x1, x2y[2], chi))
         )
     )
 }
 
-jac.simple <- function(){}
 
+# chi <- -0.1
+# Chi <- matrix(rep(0, 25), 5, 5)
+# Chi[1,2] <- chi
+# Chi[2,1] <- chi
+# a <- gibbs.d(0.1, 0.1, Chi = Chi,
+#            alpha = 3.622,
+#            sigma = c(0.15, 0.15, 1, 1, 0),
+#            polymer.num = c(1000, 1000, 1, 1, 1),
+#            size.ratio = rep(1, 5),
+#            molar.ratio = rep(1, 5))
+# b <- dg.simple(0.1, 0.1, -0.1)
+# print(c(a, b, a-b))
+# stop()
 f.complex <- function(x2y, x1, chi) {
     Chi <- matrix(rep(0, 25), 5, 5)
     Chi[1,2] <- chi
@@ -47,7 +59,7 @@ f.complex <- function(x2y, x1, chi) {
                        )
 }
 
-ds.simple <- do.call(rbind, lapply(c(-0.1, 0, 0.1), function(chi){
+ds.simple <- do.call(rbind, lapply(c(-0.2, 0, 0.2), function(chi){
     
     ds <- do.call(rbind, lapply(seq(1e-5, 0.01, 1e-4), function(x1) {
         
@@ -75,7 +87,7 @@ ds.simple <- do.call(rbind, lapply(c(-0.1, 0, 0.1), function(chi){
         
     }))
 }))
-ds.complex <- do.call(rbind, lapply(c(-0.1, 0, 0.1), function(chi){
+ds.complex <- do.call(rbind, lapply(c(-0.2, 0, 0.2), function(chi){
     
     ds <- do.call(rbind, lapply(seq(1e-5, 0.01, 1e-4), function(x1) {
         

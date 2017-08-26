@@ -1,7 +1,7 @@
 # manning's condensation
 rm(list = ls())
 source('vomodel.R')
-source('proteinRNA.para.R')
+source('para.proteinRNA.R')
 library(yxplot)
 library(ggplot2)
 library(dplyr)

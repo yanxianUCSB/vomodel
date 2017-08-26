@@ -17,10 +17,11 @@ SAVE <- T
 # fitting.para$binodal.guess <- c(0.1, 0.1)
 # p3 <- get.binodal.curve(40, 0, system.properties, fitting.para)
 Chi <- system.properties$Chi
-fitting.para$critical.point.guess <- c(phi.polymer = 0.01, phi.salt = 0.01)
+# fitting.para$critical.point.guess <- c(phi.polymer = 0.1, phi.salt = 0.01)
 
+print(get.alpha(323, k.water.size))
 
-p2 <- get.binodal.curves(seq(20, 40, 10), Chi, system.properties, fitting.para)
+p2 <- get.binodal.curves(seq(50, 70, 10), Chi, system.properties, fitting.para)
 p3 <- do.call(rbind, lapply(seq(0.34, 0.44, 0.05), function(sigma){
     system.properties$sigma <- c(sigma, sigma, 1, 1, 0)
     get.binodal.curve(30, Chi, system.properties, fitting.para)
@@ -32,7 +33,7 @@ p4 <- do.call(rbind, lapply(seq(500, 1000, 250), function(polymer.num){
 
 
 g2 <- ggplot(p2, aes(y = conc.salt, group = tempC)) +
-  geom_line(aes(x = conc.p + conc.q, col = tempC), lwd = 2) +
+  geom_point(aes(x = conc.p + conc.q, col = tempC), lwd = 2) +
     scale_colour_continuous(breaks = seq(20, 40, 10), guide = 'legend') +
   labs(x = 'Polymer [mol/L]',
        y = 'Salt [mol/L]',
