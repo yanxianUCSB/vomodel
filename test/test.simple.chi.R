@@ -1,5 +1,5 @@
 rm(list = ls())
-source('vomodel.testing.R')
+source('vomodel.R')
 library(yxplot)
 library(ggplot2)
 

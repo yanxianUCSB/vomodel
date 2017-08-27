@@ -37,7 +37,7 @@ system.properties$Chi <- Chi
 
 fitting.para$binodal.guess <- 0.015
 
-phase.diagram.exp <- get.phase.diagram.exp(dataset.file = 'C:/Users/Yetsun/Box/anywhere/dataset.csv')
+phase.diagram.exp <- get.phase.diagram.exp(dataset.file = '~/Box/anywhere/dataset.csv')
 
 ds <- get.phase.diagram(system.properties, fitting.para)
 saveRDS(ds, 'out.test.ds.data')

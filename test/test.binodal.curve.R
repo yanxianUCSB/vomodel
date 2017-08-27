@@ -1,6 +1,6 @@
 # Binodal curve at different temperature
 rm(list = ls())
-source('vomodel.R')
+source('vomodel.testing.R')
 source('para.voorn.R')
 library(yxplot)
 library(yxhelper)

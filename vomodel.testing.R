@@ -557,8 +557,8 @@ get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
     return(dataset)
 }
 
-source('para.proteinRNA.R')
-chipq <- -100
+source('para.voorn.R')
+chipq <- 0
 chipw <- 0
 system.properties$Chi <- matrix(c(
     0, chipq, 0,0,chipw,
@@ -571,12 +571,13 @@ print(get.alpha(173, system.properties$water.size))
 # fitting.para$binodal.guess <- c(1e-2, 1e-2)
 fitting.para$binodal.guess <- c(1e-2, 1e-2)
 # system.properties$sigma[2] <- c( 0.5)
-# d <- get.binodal.curve(20, sysprop = system.properties, fitting.para = fitting.para, condensation = T, counterion.release = T)
-ds <- get.phase.diagram(system.properties, fitting.para)
-saveRDS(ds, 'out.test.ds.data')
-ds <- readRDS('out.test.ds.data')
+ds <- get.binodal.curve(20, sysprop = system.properties, fitting.para = fitting.para, condensation = T, counterion.release = T)
+# ds <- get.phase.diagram(system.properties, fitting.para)
+# saveRDS(ds, 'out.test.ds.data')
+# ds <- readRDS('out.test.ds.data')
+# ds2 <- get.phase.diagram.temp.conc(ds, system.properties)
 library(yxplot)
 library(ggplot2)
-# g <- yxplot.quick(d$conc.mass.polymer, d$conc.salt)
-g <- yxplot.quick(ds$phi.polymer, ds$phi.salt)
+# g <- yxplot.quick(ds$phi.polymer, ds$phi.salt)
+g <- yxplot.quick(ds$conc.mass.polymer, ds$conc.salt)
 print(g)
