@@ -31,6 +31,7 @@ pkpq                       <- function(..., sysprop = NULL) {
     N.2 <- arg$molar.ratio[2]
     
     out1 <- (N.2 * M.2 * size.2^3 ) / (N.1 * M.1 * size.1^3 )
+    
     # out2 <- (N.2 * M.2 * size.2 * sigma.2) / (N.1 * M.1 * size.1 * sigma.1)
     
     return( out1 )
@@ -125,82 +126,82 @@ gibbs.d                    <- function(phi.polymer, phi.salt, ...) {
         # )
     )
 }
-gibbs.dd                   <- function(phi.polymer, phi.salt, ...) {
-    # ... = alpha, sigma, polymer.num, kpq
-    arg <- list(...)
-    Chi <- arg$Chi
-    alpha <- arg$alpha
-    para <- pp(sysprop = arg)
-    kpq <- para$kpq
-    phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
-    return(
-        # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
-            -alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S ^ 2 +
-                para$A * 1 / phi.polymer +
-                1 / (1 - phi.polymer - phi.salt) +
-                2*(1/(1+kpq)^2)*(Chi[1,1]+Chi[1,2]+Chi[2,1]+Chi[2,2])
-            # 2*arg$Chi[1,1]*kpq/(1+kpq)^2
-        # )
-    )
-}
-gibbs.ddd                  <- function(phi.polymer, phi.salt, ...) {
-    # ... = alpha, sigma, polymer.num, kpq
-    arg <- list(...)
-    Chi <- arg$Chi
-    alpha <- arg$alpha
-    para <- pp(sysprop = arg)
-    kpq <- para$kpq
-    phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
-    return(
-        # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
-            alpha * 0.375 * (para$S * phi.polymer + phi.salt) ^ (-1.5) * para$S ^ 3 -
-                para$A * 1 / phi.polymer ^ 2 +
-                1 / (1 - phi.polymer - phi.salt) ^ 2
-        # )
-    )
-}
-
-critical.point_            <- function(guess,  sysprop, fitting.para, default = NULL) {
-    # output list of critical points
-    
-    i <- critical.point.fun_(guess, 
-                             alpha = sysprop$alpha,
-                             sigma = sysprop$sigma,
-                             Chi = sysprop$Chi,
-                             polymer.num = sysprop$polymer.num,
-                             size.ratio = sysprop$size.ratio,
-                             molar.ratio = sysprop$molar.ratio)
-    if (any(is.nan(i))) return(default)
-    
-    out <- nleqslv(
-        x = guess,
-        fn = critical.point.fun_,
-        # jac = critical.point.jac,
-        control = list(allowSingular = T, xtol = 1e-10),
-        global = 'cline',
-        method = 'Newton',
-        alpha = sysprop$alpha,
-        sigma = sysprop$sigma,
-        Chi = sysprop$Chi,
-        polymer.num = sysprop$polymer.num,
-        size.ratio = sysprop$size.ratio,
-        molar.ratio = sysprop$molar.ratio)
-    
-    result <- list(phi.polymer = out$x[1], phi.salt = out$x[2])
-    
-    if (result$phi.polymer < 0) return(default)
-    
-    return(result)
-}
-critical.point.fun_        <- function(phis, ...) {
-    arg <- list(...)
-    ddg <- gibbs.dd(phi.polymer = phis[1], phi.salt = phis[2], ...)
-    dddg <- gibbs.ddd(phi.polymer = phis[1], phi.salt = phis[2], ...)
-    return(c(
-        ddg,
-        dddg
-    ))
-}
+# gibbs.dd                   <- function(phi.polymer, phi.salt, ...) {
+#     # ... = alpha, sigma, polymer.num, kpq
+#     arg <- list(...)
+#     Chi <- arg$Chi
+#     alpha <- arg$alpha
+#     para <- pp(sysprop = arg)
+#     kpq <- para$kpq
+#     phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
+#     return(
+#         # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
+#             -alpha * 0.75 * (para$S * phi.polymer + phi.salt) ^ (-0.5) * para$S ^ 2 +
+#                 para$A * 1 / phi.polymer +
+#                 1 / (1 - phi.polymer - phi.salt) +
+#                 2*(1/(1+kpq)^2)*(Chi[1,1]+Chi[1,2]+Chi[2,1]+Chi[2,2])
+#             # 2*arg$Chi[1,1]*kpq/(1+kpq)^2
+#         # )
+#     )
+# }
+# gibbs.ddd                  <- function(phi.polymer, phi.salt, ...) {
+#     # ... = alpha, sigma, polymer.num, kpq
+#     arg <- list(...)
+#     Chi <- arg$Chi
+#     alpha <- arg$alpha
+#     para <- pp(sysprop = arg)
+#     kpq <- para$kpq
+#     phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
+#     return(
+#         # (k.vol * kkB * arg$temp) / k.water.size ^ 3 * (
+#             alpha * 0.375 * (para$S * phi.polymer + phi.salt) ^ (-1.5) * para$S ^ 3 -
+#                 para$A * 1 / phi.polymer ^ 2 +
+#                 1 / (1 - phi.polymer - phi.salt) ^ 2
+#         # )
+#     )
+# }
+# 
+# critical.point_            <- function(guess,  sysprop, fitting.para, default = NULL) {
+#     # output list of critical points
+#     
+#     i <- critical.point.fun_(guess, 
+#                              alpha = sysprop$alpha,
+#                              sigma = sysprop$sigma,
+#                              Chi = sysprop$Chi,
+#                              polymer.num = sysprop$polymer.num,
+#                              size.ratio = sysprop$size.ratio,
+#                              molar.ratio = sysprop$molar.ratio)
+#     if (any(is.nan(i))) return(default)
+#     
+#     out <- nleqslv(
+#         x = guess,
+#         fn = critical.point.fun_,
+#         # jac = critical.point.jac,
+#         control = list(allowSingular = T, xtol = 1e-10),
+#         global = 'cline',
+#         method = 'Newton',
+#         alpha = sysprop$alpha,
+#         sigma = sysprop$sigma,
+#         Chi = sysprop$Chi,
+#         polymer.num = sysprop$polymer.num,
+#         size.ratio = sysprop$size.ratio,
+#         molar.ratio = sysprop$molar.ratio)
+#     
+#     result <- list(phi.polymer = out$x[1], phi.salt = out$x[2])
+#     
+#     if (result$phi.polymer < 0) return(default)
+#     
+#     return(result)
+# }
+# critical.point.fun_        <- function(phis, ...) {
+#     arg <- list(...)
+#     ddg <- gibbs.dd(phi.polymer = phis[1], phi.salt = phis[2], ...)
+#     dddg <- gibbs.ddd(phi.polymer = phis[1], phi.salt = phis[2], ...)
+#     return(c(
+#         ddg,
+#         dddg
+#     ))
+# }
 
 binodal.curve.fun_              <- function(x, phi.polymer.2, ...) {
     phi.polymer.1 <- x[1]
@@ -286,7 +287,8 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
                 size.ratio = sysprop$size.ratio,
                 molar.ratio = sysprop$molar.ratio
                 )
-            
+            # print(sysprop)
+            # stop()
             # filter 
             # if (roots$x[2] < phi.salt.old || 
             #     roots$x[1] > phi.1.old
@@ -390,7 +392,7 @@ get.binodal.curve           <- function(tempC,
     
     # Chi
     Chi298 <- sysprop$Chi
-    sysprop$Chi <- Chi298 * 298 / (tempC + 273)
+    sysprop$Chi <- Chi298 * 298 / temp
     
     kpq <- pkpq(sysprop = sysprop)
     
@@ -414,19 +416,19 @@ get.binodal.curve           <- function(tempC,
                 tempC = tempC,
                 conc.salt = phi.salt / (
                     kNa * sysprop$polymer.num[3] *
-                        sysprop$size.ratio[3] *
-                        sysprop$water.size ^ 3
+                        (sysprop$size.ratio[3] *
+                        sysprop$water.size) ^ 3
                 ) / 1000,
                 # mol/L
                 conc.p = phi.polymer / (1 + kpq) / (
                     kNa * sysprop$polymer.num[1] *
-                        sysprop$size.ratio[1] *
-                        sysprop$water.size ^ 3
+                        (sysprop$size.ratio[1] *
+                        sysprop$water.size) ^ 3
                 ) / 1000,
                 conc.q = phi.polymer * kpq / (1 + kpq) / (
                     kNa * sysprop$polymer.num[2] *
-                        sysprop$size.ratio[2] *
-                        sysprop$water.size ^ 3
+                        (sysprop$size.ratio[2] *
+                        sysprop$water.size) ^ 3
                 ) / 1000
             ) %>%
             ungroup() %>% 
@@ -440,7 +442,7 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
     
 
     
-    p <- lapply(seq(4, 40, 1), function(tempC) {
+    p <- lapply(seq(4, 44, 10), function(tempC) {
         
         
         # update critical.point.guess
@@ -451,7 +453,8 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
             
             out <- get.binodal.curve(tempC, sysprop = system.properties, 
                                    fitting.para = fitting.para, 
-                                   condensation = T, counterion.release = T)
+                                   condensation = fitting.para$condensation, 
+                                   counterion.release = fitting.para$counterion.release)
         
             cat('succeeded!\n\n')
         if (is.null(out) || nrow(out) < 2) return(NULL)
@@ -557,8 +560,8 @@ get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
     return(dataset)
 }
 
-source('para.voorn.R')
-chipq <- 0
+source('para.proteinRNA.R')
+chipq <- -0
 chipw <- 0
 system.properties$Chi <- matrix(c(
     0, chipq, 0,0,chipw,
@@ -567,17 +570,36 @@ system.properties$Chi <- matrix(c(
     0,0,0,0,0,
     chipw,0,0,0,0
 ), 5, 5)
-print(get.alpha(173, system.properties$water.size))
+
+# system.properties$polymer.num[1] <- 200
+# system.properties$polymer.num[2] <- 3000
+# system.properties$sigma[1] <- 0.05
+# system.properties$sigma[2] <- 1
+# system.properties$MW[1] <- 22e3
+# system.properties$MW[2] <- 900e3
+system.properties$size.ratio[1:2] <- c(2, 2)
+# system.properties$molar.ratio[1:2] <- c(3000, 10)
+fitting.para$sampling.start <- 1e-10
+fitting.para$sampling.end <- 0.003
+fitting.para$sampling.gap <- 5e-6
+fitting.para$condensation <- F
+fitting.para$counterion.release <- F
 # fitting.para$binodal.guess <- c(1e-2, 1e-2)
-fitting.para$binodal.guess <- c(1e-2, 1e-2)
+fitting.para$binodal.guess <- c(1e-4, 1e-5)
+
+
+# alpha
+print(get.alpha(293, system.properties$size.ratio[1] * k.water.size))
+
 # system.properties$sigma[2] <- c( 0.5)
-ds <- get.binodal.curve(20, sysprop = system.properties, fitting.para = fitting.para, condensation = T, counterion.release = T)
+ds <- get.binodal.curve(18, sysprop = system.properties, fitting.para = fitting.para,
+                condensation = F, counterion.release = F)
 # ds <- get.phase.diagram(system.properties, fitting.para)
 # saveRDS(ds, 'out.test.ds.data')
 # ds <- readRDS('out.test.ds.data')
 # ds2 <- get.phase.diagram.temp.conc(ds, system.properties)
 library(yxplot)
 library(ggplot2)
-# g <- yxplot.quick(ds$phi.polymer, ds$phi.salt)
 g <- yxplot.quick(ds$conc.mass.polymer, ds$conc.salt)
+g <- yxplot.quick(ds$phi.polymer, ds$phi.salt)
 print(g)
