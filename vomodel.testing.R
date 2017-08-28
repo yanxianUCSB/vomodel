@@ -116,12 +116,12 @@ gibbs.d                    <- function(phi.polymer, phi.salt, ...) {
             para$A * log(phi.polymer) + para$A +
             para$B -
             log(1 - phi.polymer - phi.salt) - 1 +
-            4 * Chi[1, 2] * kpq / (1+kpq)^2 * phi.polymer
+            # 4 * Chi[1, 2] * kpq / (1+kpq)^2 * phi.polymer
             # 2 * Chi[1, 5] * 1   / (1+kpq)   * phi[5]
-            # 2*phi.polymer*(1/(1+kpq)^2)*(Chi[1,1]+Chi[1,2]+Chi[2,1]+Chi[2,2]) +
-            # (1/(1+kpq))*((Chi[1,3]+Chi[3,1]+Chi[2,3]+Chi[3,2])*phi[3] +
-            #                  (Chi[1,4]+Chi[4,1]+Chi[2,4]+Chi[4,2])*phi[4] +
-            #                  (Chi[1,5]+Chi[5,1]+Chi[2,5]+Chi[5,2])*phi[5])
+            2*phi.polymer*(1/(1+kpq)^2) * (Chi[1,1] + kpq*Chi[1,2] + kpq*Chi[2,1] + kpq^2*Chi[2,2]) +
+            (1/(1+kpq))*((Chi[1,3] + Chi[3,1] + kpq*Chi[2,3] + kpq*Chi[3,2])*phi[3] +
+                             (Chi[1,4] + Chi[4,1] + kpq*Chi[2,4] + kpq*Chi[4,2])*phi[4] +
+                             (Chi[1,5] + Chi[5,1] + kpq*Chi[2,5] + kpq*Chi[5,2])*phi[5])
         # 2*Chi[1,1]*kpq/(1+kpq)^2 * phi.polymer + 2/(1+kpq)*Chi[1,1:5]%*%phi - 2/(1+kpq)*Chi[1,1]*phi[1]
         # )
     )
@@ -248,7 +248,9 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     binodal.guess0 <- fitting.para$binodal.guess
     # binodal.guess0[2] <- c.point$phi.salt
     
-    for (i in seq(1, 10, 1)) {
+    for (i in seq(1, 3, 1)) {
+        
+        i <- 10^i
         
         binodal.guess <- binodal.guess0*i
         
@@ -346,12 +348,14 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
         }
     }
     
-    assertthat::assert_that(length(output) > 0, msg = 'binodal.curve_ failed')
+    if (length(output) < 1) return()
+    # assertthat::assert_that(length(output) > 0, msg = 'binodal.curve_ failed')
     
     p2 <- as.data.frame.matrix(do.call(rbind, output)) %>%
         filter(phi.polymer.1 > max(phi.polymer.2))  # requiring the dense phase should be larger than dilute phase
     
-    assertthat::assert_that(nrow(p2) > 0)
+    if (nrow(p2) < 1) return()
+    # assertthat::assert_that(nrow(p2) > 0)
     
     ds <- data.frame(
         phi.polymer = c(p2$phi.polymer.2, rev(p2$phi.polymer.1)),
@@ -438,11 +442,11 @@ get.binodal.curve           <- function(tempC,
     }
     return(ds)
 }
-get.phase.diagram           <- function(system.properties, fitting.para) {
+get.phase.diagram           <- function(system.properties, fitting.para, temp.range = NULL) {
     
 
     
-    p <- lapply(seq(4, 44, 10), function(tempC) {
+    p <- lapply(temp.range, function(tempC) {
         
         
         # update critical.point.guess
@@ -475,7 +479,7 @@ get.phase.diagram           <- function(system.properties, fitting.para) {
 get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.conc.salt = 0.030) {
     if (is.null(phase.diagram.ds)) return()
     
-    precision <- 1e-5
+    # precision <- 1e-5
     
     ds <- as.data.frame(phase.diagram.ds)
     
@@ -487,11 +491,6 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.c
                 mutate(
                     conc.polymer = spline(ds.t1$conc.salt, ds.t1$conc.polymer, xout = conc.salt)$y,
                     phase = 'dilute'
-                ),
-            data.frame(conc.salt = k.conc.salt) %>%
-                mutate(
-                    conc.polymer = spline(ds.t2$conc.salt, ds.t2$conc.polymer, xout = conc.salt)$y,
-                    phase = 'dense'
                 )
         ) %>%
             mutate(
@@ -506,7 +505,7 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.c
     return(ds4)
     
 }
-get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, nacl.range = NULL, k.conc.polymer = 0.125) {
+get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, k.conc.polymer = 0.125) {
     if (is.null(phase.diagram.ds)) return()
     
     precision <- 1e-5
@@ -519,12 +518,8 @@ get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, nac
     ds2 <- lapply(unique(ds$tempC), function(tempc) {
         ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute') 
         
-        if (min(ds.t1$conc.salt) > k.conc.salt) return()
+        if (min(ds.t1$conc.salt) > 30) return()
         
-        # if (DEBUG){
-        #     plot(ds.t1$conc.polymer, ds.t1$conc.salt)
-        #     readline('>>>')
-        # }
         ds3 <- rbind(
             data.frame(conc.polymer = k.conc.polymer) %>%
                 mutate(
@@ -560,46 +555,3 @@ get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
     return(dataset)
 }
 
-source('para.proteinRNA.R')
-chipq <- -0
-chipw <- 0
-system.properties$Chi <- matrix(c(
-    0, chipq, 0,0,chipw,
-    chipq,0,0,0,0,
-    0,0,0,0,0,
-    0,0,0,0,0,
-    chipw,0,0,0,0
-), 5, 5)
-
-# system.properties$polymer.num[1] <- 200
-# system.properties$polymer.num[2] <- 3000
-# system.properties$sigma[1] <- 0.05
-# system.properties$sigma[2] <- 1
-# system.properties$MW[1] <- 22e3
-# system.properties$MW[2] <- 900e3
-system.properties$size.ratio[1:2] <- c(2, 2)
-# system.properties$molar.ratio[1:2] <- c(3000, 10)
-fitting.para$sampling.start <- 1e-10
-fitting.para$sampling.end <- 0.003
-fitting.para$sampling.gap <- 5e-6
-fitting.para$condensation <- F
-fitting.para$counterion.release <- F
-# fitting.para$binodal.guess <- c(1e-2, 1e-2)
-fitting.para$binodal.guess <- c(1e-4, 1e-5)
-
-
-# alpha
-print(get.alpha(293, system.properties$size.ratio[1] * k.water.size))
-
-# system.properties$sigma[2] <- c( 0.5)
-ds <- get.binodal.curve(18, sysprop = system.properties, fitting.para = fitting.para,
-                condensation = F, counterion.release = F)
-# ds <- get.phase.diagram(system.properties, fitting.para)
-# saveRDS(ds, 'out.test.ds.data')
-# ds <- readRDS('out.test.ds.data')
-# ds2 <- get.phase.diagram.temp.conc(ds, system.properties)
-library(yxplot)
-library(ggplot2)
-g <- yxplot.quick(ds$conc.mass.polymer, ds$conc.salt)
-g <- yxplot.quick(ds$phi.polymer, ds$phi.salt)
-print(g)
