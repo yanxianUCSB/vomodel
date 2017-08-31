@@ -1,11 +1,14 @@
 # Voorn-Overbeek Modeling
 rm(list = ls())
 kNa                         <<- 6.02E23
-kkB                         <<- 1.38064852E-23         # Boltzmann Constant
-ke                          <<- 1.60217662E-19         # Elementary charge
+# kkB                         <<- 1.38064852E-23         # Boltzmann Constant
+kkB                         <<- 1.38E-23         # Boltzmann Constant
+# ke                          <<- 1.60217662E-19         # Elementary charge
+ke                          <<- 1.60E-19         # Elementary charge
 kEr                         <<- 4 * pi * 80 * 8.85E-12 # F/m; vaccuum permitivity = 8.85E-12
 
-k.water.size                <<- 0.31E-9     # calculated from 18 cm^3 / mol
+# k.water.size                <<- 0.31E-9     # calculated from 18 cm^3 / mol
+k.water.size                <<- (18E-6 / kNa)^(1/3)     # calculated from 18 cm^3 / mol
 k.na.size                   <<- 0.235E-9    # (Marcus 1988)
 k.cl.size                   <<- 0.318E-9    # (Marcus 1988)
 k.water.conc                <<- 1000 / 18.01528 * 1000  # water concentration
@@ -110,6 +113,7 @@ gibbs.d                    <- function(phi.polymer, phi.salt, ...) {
     kpq <- para$kpq
     phi <- c(phi.polymer/(1+kpq), phi.polymer*kpq/(1+kpq), phi.salt*0.5, phi.salt*0.5, 1-phi.salt-phi.polymer)
     # temp <- get.temp(alpha, k.water.size)
+    return(numDeriv::grad(func = gibbs, x = phi.polymer, method = 'simple', phi.salt = phi.salt, ...))
     return(
         # (k.vol * kkB * temp) / k.water.size ^ 3 * (
         -alfa * 1.5 * (para$S * phi.polymer + phi.salt) ^ 0.5 * para$S +
@@ -119,9 +123,16 @@ gibbs.d                    <- function(phi.polymer, phi.salt, ...) {
             # 4 * Chi[1, 2] * kpq / (1+kpq)^2 * phi.polymer
             # 2 * Chi[1, 5] * 1   / (1+kpq)   * phi[5]
             2*phi.polymer*(1/(1+kpq)^2) * (Chi[1,1] + kpq*Chi[1,2] + kpq*Chi[2,1] + kpq^2*Chi[2,2]) +
-            (1/(1+kpq))*((Chi[1,3] + Chi[3,1] + kpq*Chi[2,3] + kpq*Chi[3,2])*phi[3] +
-                             (Chi[1,4] + Chi[4,1] + kpq*Chi[2,4] + kpq*Chi[4,2])*phi[4] +
-                             (Chi[1,5] + Chi[5,1] + kpq*Chi[2,5] + kpq*Chi[5,2])*phi[5])
+              1/(1+kpq) * 2*(phi[3]*Chi[1,3] + phi[4]*Chi[1,4]) +
+            kpq/(1+kpq) * 2*(phi[3]*Chi[2,3] + phi[4]*Chi[2,4]) +
+            2 * 1/(1+kpq) * (1-phi.polymer-phi.salt) * Chi[1,5] - 2 * 1/(1+kpq) * phi.polymer * Chi[1,5] +
+            2 * kpq/(1+kpq) * (1-phi.polymer-phi.salt) * Chi[2,5] - 2 * kpq/(1+kpq) * phi.polymer * Chi[2,5] +
+            -2 * (phi[3] + phi[4]) +
+            -4 * (1-phi.polymer-phi.salt) * Chi[5,5]
+            
+            # (1/(1+kpq))*(( Chi[1,3] + Chi[3,1] + kpq*Chi[2,3] + kpq*Chi[3,2])*phi[3] +
+            #                  (Chi[1,4] + Chi[4,1] + kpq*Chi[2,4] + kpq*Chi[4,2])*phi[4] +
+            #                  (Chi[1,5] + Chi[5,1] + kpq*Chi[2,5] + kpq*Chi[5,2])*phi[5])
         # 2*Chi[1,1]*kpq/(1+kpq)^2 * phi.polymer + 2/(1+kpq)*Chi[1,1:5]%*%phi - 2/(1+kpq)*Chi[1,1]*phi[1]
         # )
     )
@@ -226,18 +237,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     if (is.null(sysprop)) arg <- list(...)
     else arg <- sysprop
     
-    # c.point <- critical.point_(fitting.para$critical.point.guess, sysprop, fitting.para, default = fitting.para$default.critical.point)
     c.point <- fitting.para$default.critical.point
-    # if(c.point$phi.polymer < fitting.para$sampling.end) {
-    #     fitting.para$sampling.end <- c.point$phi.polymer
-    # }
-    # if (DEBUG) print(c('critical salt = ', c.point$phi.salt))
-    
-    # search binodal point return c(phi.polymer, phi.salt)
-    # phi.polymer.2.seq <- seq(fitting.para$sampling.start, fitting.para$sampling.end, fitting.para$sampling.gap)
-    
-    # phi.polymer.2.seq <- c(seq( fitting.para$sampling.gap, fitting.para$sampling.gap*1e3, fitting.para$sampling.gap),
-    # seq( fitting.para$sampling.gap * 1e3, c.point$phi.polymer, fitting.para$sampling.gap * 1e5))
     
     n <- floor(0.5 * (1 + sqrt(1 + 8 * fitting.para$sampling.end / fitting.para$sampling.gap)))
     phi2.seq <-  fitting.para$sampling.gap * seq(1, n, 1) * seq(2, n + 1, 1) * 0.5
@@ -248,11 +248,15 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
     binodal.guess0 <- fitting.para$binodal.guess
     # binodal.guess0[2] <- c.point$phi.salt
     
-    for (i in seq(1, 3, 1)) {
+    for (i in seq(1, 4, 1)) {
         
+        # i <- c(10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000)[i]
         i <- 10^i
         
         binodal.guess <- binodal.guess0*i
+        cat('current binodal guess: ')
+        cat(i)
+        cat('/10000\n')
         
         guess.i <- 1
         phi.salt.old <- 0
@@ -279,7 +283,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
                 binodal.curve.fun_,
                 # binodal.curve.jacobian_,
                 phi.polymer.2 = phi.polymer.2, 
-                # control = list(allowSingular = T, xtol = 1e-10),
+                control = list(xtol = fitting.para$epsilon),
                 method = 'Newton',
                 global = 'cline',
                 alpha = sysprop$alpha,
@@ -344,6 +348,9 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
         }
         
         if (length(output) > 4) {
+            cat('binodal guess good: ')
+            cat(binodal.guess)
+            cat(' nleqslv completed\n')
             break
         }
     }
@@ -368,6 +375,7 @@ binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL
         phase.separated = ifelse(nrow(p2) < 3, F, T)  # if the roots only has few rows then we say there is no binodal curve
     )
     
+    cat(' nleqslv makes sense\n')
     return(ds)
 }
 get.binodal.curve           <- function(tempC, 
@@ -381,22 +389,36 @@ get.binodal.curve           <- function(tempC,
     temp <- tempC + 273.15
     
     sysprop$alpha <- get.alpha(temp, k.water.size)
+    cat('alpha: ')
+    cat(sysprop$alpha)
+    cat('\n')
     
     
     # Condensation
     if (condensation) {
         lB <- 0.7E-9  # Bjerrum length at 298K
         sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
+        cat('condensation: current sigma[2] = ')
+        cat(sysprop$sigma[2])
+        cat('\n')
     } 
     if (counterion.release) {
         # update Bjerrum length and the effective charge density of RNA
         lB <- ke^2 / (kEr*kkB*(tempC+273.15))
         sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
+        cat('counterion release: current sigma[2] = ')
+        cat(sysprop$sigma[2])
+        cat('\n')
     } 
     
-    # Chi
-    Chi298 <- sysprop$Chi
-    sysprop$Chi <- Chi298 * 298 / temp
+    # # Chi
+    # Chi298 <- sysprop$Chi
+    # sysprop$Chi <- Chi298 * 298 / temp
+    # cat('Chipq, Chipw: ')
+    # cat(sysprop$Chi[1,2])
+    # cat(' ')
+    # cat(sysprop$Chi[1,5])
+    # cat('\n')
     
     kpq <- pkpq(sysprop = sysprop)
     
@@ -452,7 +474,7 @@ get.phase.diagram           <- function(system.properties, fitting.para, temp.ra
         # update critical.point.guess
         # fitting.para$critical.point.guess <- as.numeric(fitting.para$c.point.temp.fun(tempC + 273))
         
-            cat(paste0('Temp [C]: ', tempC, '\n'))
+            cat(paste0('Cur. Temp [C]: ', tempC, '\n'))
             cat('fitting >>>\n')
             
             out <- get.binodal.curve(tempC, sysprop = system.properties, 
@@ -460,9 +482,13 @@ get.phase.diagram           <- function(system.properties, fitting.para, temp.ra
                                    condensation = fitting.para$condensation, 
                                    counterion.release = fitting.para$counterion.release)
         
-            cat('succeeded!\n\n')
-        if (is.null(out) || nrow(out) < 2) return(NULL)
-        else return(out)
+        if (is.null(out) || nrow(out) < 2) {
+            cat('get.binodal.curve failed!\n\n')
+            return(NULL)
+        } else {
+            cat('get.binodal.curve succeeded!\n\n')
+            return(out)
+        }
     })
     
     out <- do.call(rbind, p) 
@@ -501,7 +527,9 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.c
     })
     
     ds3 <- do.call(rbind, ds2) 
-    ds4 <- ds3 %>% filter(conc.polymer < 500, conc.polymer > 0) %>% select(conc.polymer, tempC)
+    if(is.null(ds3)) return()
+    ds4 <- ds3
+    # ds4 <- ds3 %>% filter(conc.polymer < 500, conc.polymer > 0) %>% select(conc.polymer, tempC)
     return(ds4)
     
 }
@@ -531,6 +559,7 @@ get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, k.c
                 conc.polymer = k.conc.polymer,
                 tempC = tempc
             ) 
+        return(ds3)
     })
     
     ds3 <- do.call(rbind, ds2) 

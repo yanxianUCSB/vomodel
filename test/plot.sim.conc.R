@@ -25,10 +25,10 @@ k.sim.temp.range  <<- seq(4, 44, 10)
 
 # Chi
 Chi <-  matrix(rep(0, 25), 5, 5)
-Chi[1,2] <- -1.78
-# Chi[1,5] <- 0.070017
+Chi[1,2] <- -0
+Chi[1,5] <- 0.2482834
 Chi[2,1] <- Chi[1,2]
-# Chi[5,1] <- Chi[1,5]
+Chi[5,1] <- Chi[1,5]
 system.properties$Chi <- Chi
 
 
@@ -50,7 +50,12 @@ assertthat::assert_that(!is.null(ds))
 
 g <- ggplot(ds, aes(x = conc.polymer, y = conc.salt, group = tempC)) +
     geom_point(aes(col = tempC)) +
-    geom_line(aes(x = conc.polymer, y = conc.salt, col = tempC))
+    geom_line(aes(x = conc.polymer, y = conc.salt, col = tempC)) +
+    scale_color_continuous(guide = 'legend') +
+    labs(x = 'Conc.polymer[mg/mL]',
+         y= 'NaCl [M]', 
+         col = 'Temp. [C]')
+    
 
 g2 <- ggplot(ds2 %>% filter(conc.polymer < 20), aes(x = conc.polymer, y = tempC)) + 
     geom_line(aes(col = 'sim'), lwd = 2) +
@@ -68,21 +73,24 @@ g3 <- ggplot(ds3, aes(x = conc.salt, y = tempC)) +
          y = 'Temperature [C]', 
          col = '')
 
-print(ds2)
+if (!SAVE) {
 print(g)
-stop()
-# readline('>>> ')
+readline('>>> ')
 print(g2)
 readline('>>> ')
 print(g3)
 readline('>>> ')
+}
 
 if(SAVE) {
+    g <- theme.background.1(g)
+    g <- theme.title.text.1(g)
+    ggsave('plot.sim.conc.bncurve.png', g, width = 5, height = 5)
     g2 <- theme.background.1(g2)
     g2 <- theme.title.text.2(g2)
-    ggsave( 'get.phase.diagram.temp.conc.png', g2, width = 5, height = 5)
+    ggsave( 'plot.sim.conc.conc.png', g2, width = 5, height = 5)
     g3 <- theme.background.1(g3)
     g3 <- theme.title.text.2(g3)
-    ggsave( 'get.phase.diagram.temp.nacl.png', g3, width = 5, height = 5)
+    ggsave( 'plot.sim.conc.nacl.png', g3, width = 5, height = 5)
 }
 

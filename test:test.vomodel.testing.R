@@ -1,15 +1,9 @@
 rm(list = ls())
 source('vomodel.testing.R')
 source('para.proteinRNA.R')
-chipq <- -1
-chipw <- 0
-system.properties$Chi <- matrix(c(
-    0, chipq, 0,0,chipw,
-    chipq,0,0,0,0,
-    0,0,0,0,0,
-    0,0,0,0,0,
-    chipw,0,0,0,0
-), 5, 5)
+library(nleqslv)
+library(dplyr)
+library(numDeriv)
 
 # system.properties$polymer.num[1] <- 200
 # system.properties$polymer.num[2] <- 3000
@@ -17,15 +11,15 @@ system.properties$Chi <- matrix(c(
 # system.properties$sigma[2] <- 1
 # system.properties$MW[1] <- 22e3
 # system.properties$MW[2] <- 900e3
-system.properties$size.ratio[1:4] <- c(3, 3, 1, 1)
+# system.properties$size.ratio[1:4] <- c(6, 6, 1, 1)
 # system.properties$molar.ratio[1:2] <- c(3000, 10)
 # fitting.para$sampling.start <- 1e-10
-fitting.para$sampling.end <- 0.05
+# fitting.para$sampling.end <- 0.05
 # fitting.para$sampling.gap <- 5e-6
-fitting.para$condensation <- T
-fitting.para$counterion.release <- T
-# fitting.para$binodal.guess <- c(1e-2, 1e-2)
-# fitting.para$binodal.guess <- c(1e-3, 1e-4)
+# fitting.para$condensation <- F
+# fitting.para$counterion.release <- F
+# fitting.para$binodal.guess <- c(1e-4, 1e-4)
+fitting.para$binodal.guess <- c(1e-3, 1e-3)
 
 
 # alpha
@@ -38,7 +32,28 @@ fitting.para$counterion.release <- T
 # stop()
 
 # phase diagram at 4, 14, 24, 34, 44 C
-ds <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(4, 64, 20))
+ds <- bind_rows(lapply(seq(2, 10, 2), function(size.ratio12){
+    bind_rows(lapply(seq(0, 50, 50), function(tempC){
+        bind_rows(lapply(seq(0, 0, 10), function(chipq){
+            bind_rows(lapply(seq(0, 0, 0.002), function(chipw){
+                
+                system.properties$size.ratio[1:4] <- c(size.ratio12, size.ratio12, 1, 1)
+                system.properties$Chi <- matrix(c(
+                    0, chipq, 0,0,chipw,
+                    chipq,0,0,0,0,
+                    0,0,0,0,0,
+                    0,0,0,0,0,
+                    chipw,0,0,0,0
+                ), 5, 5)
+                d <- get.phase.diagram(system.properties, fitting.para, temp.range = tempC) 
+                if(!is.null(d))
+                    d <- d %>% mutate(chipq = chipq,
+                                      chipw = chipw,
+                                      size.ratio12 = size.ratio12)
+            }))
+        }))
+    }))
+}))
 
 saveRDS(ds, 'out.test.ds.data')
 ds <- readRDS('out.test.ds.data')
@@ -54,6 +69,35 @@ phase.diagram.exp <- get.phase.diagram.exp(dataset.file = '~/Box/anywhere/datase
 
 library(yxplot)
 library(ggplot2)
-g <- yxplot.quick(ds$phi.polymer, ds$phi.salt)
-g <- yxplot.quick(ds$conc.mass.polymer, ds$conc.salt)
+g <- ggplot(ds, aes(x = conc.mass.polymer, y = conc.salt)) +
+    geom_point(aes(col = tempC)) +
+    scale_color_continuous(guide = 'legend', breaks = unique(ds$tempC)) +
+    # scale_y_log10() +
+    facet_grid(chipw + size.ratio12~chipq)
+    
+# g <- yxplot.quick(ds$phi.polymer, ds$phi.salt)
+# g <- yxplot.quick(ds$conc.mass.polymer, ds$conc.salt)
 print(g)
+
+stop()
+
+g2 <- ggplot(ds2, aes(x = conc.polymer, y = tempC)) +
+    geom_point(aes(col = 'sim'), size = 2) +
+    geom_line(aes(col = 'sim'), lwd = 1.5) +
+    geom_point(data = phase.diagram.exp %>% filter(abs(conc.salt-0.03) < 1e-2), 
+               aes(x = conc.polymer, y = tempC.cpm, col = 'exp.cp')) +
+    geom_point(data = phase.diagram.exp %>% filter(abs(conc.salt-0.03) < 1e-2), 
+               aes(x = conc.polymer, y = tempC.onm, col = 'exp.on')) +
+    labs(x = 'Polymer [mg/mL]',
+         y = 'Temp. [C]')
+g3 <- ggplot(ds3, aes(x = conc.salt, y = tempC)) +
+    geom_point(aes(col = 'sim'), size = 2) +
+    geom_line(aes(col = 'sim'), lwd = 1.5) +
+    geom_point(data = phase.diagram.exp %>% filter(abs(conc.polymer-0.125) < 1e-2), 
+               aes(x = conc.salt, y = tempC.cpm, col = 'exp.cp')) +
+    geom_point(data = phase.diagram.exp %>% filter(abs(conc.polymer-0.125) < 1e-2), 
+               aes(x = conc.salt, y = tempC.onm, col = 'exp.on')) +
+    labs(x = 'NaCl [M]',
+         y = 'Temp. [C]')
+g3
+g2

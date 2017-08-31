@@ -4,6 +4,7 @@ source('para.proteinRNA.R')
 library(dplyr)
 library(nleqslv)
 library(ggplot2)
+library(numDeriv)
 library(pracma)
 library(mcGlobaloptim)
 
@@ -12,7 +13,7 @@ SAVE <<- T
 
 k.conc.salt  <<- 0.030
 k.conc.polymer  <<-  5E-6 * system.properties$MW[1] + 15E-3
-k.sim.temp.range  <<- seq(4, 40, 1)
+# k.sim.temp.range  <<- seq(0, 50, 10)
 k.NULLPUNISH  <<- 1E10
 # DEBUG.k.pd.sim <<- pd.sim
 
@@ -33,15 +34,15 @@ get.phase.diagram.exp <- function(dataset.file = 'dataset.csv') {
 
 chi.fn <- function(Chi.vec, ds.exp, system.properties, fitting.para) {
     Chi      <- matrix(rep(0, 25), 5, 5)
-    Chi[1,2] <- Chi.vec[1]
-    # Chi[1,5] <- Chi.vec[2]
+    # Chi[1,2] <- Chi.vec[1]
+    Chi[1,5] <- Chi.vec[1]
     Chi      <- Chi + t(Chi)
     system.properties$Chi <- Chi
     
     cat('current guess Chi\n')
     print(Chi)
     
-    ds.sim      <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(4, 44, 10))
+    ds.sim      <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(0, 50, 10))
     if (is.null(ds.sim)) return(k.NULLPUNISH)
     
     cat('current binodal curve \n')
@@ -53,7 +54,7 @@ chi.fn <- function(Chi.vec, ds.exp, system.properties, fitting.para) {
     # print(ds.sim.nacl)
     # yxplot.quick(ds.sim$conc.mass.polymer, ds.sim$conc.salt)
     # stop()
-    if (nrow(ds.sim.conc) < 2 || nrow(ds.sim.nacl) < 2) return(k.NULLPUNISH)
+    if (is.null(ds.sim.conc) || is.null(ds.sim.nacl) || nrow(ds.sim.conc) < 2 || nrow(ds.sim.nacl) < 2) return(k.NULLPUNISH)
     predict.conc <- predict(lm(tempC ~ conc.polymer, ds.sim.conc), newdata = ds.exp)
     predict.nacl <- predict(lm(tempC ~ conc.salt, ds.sim.nacl), newdata = ds.exp)
     rmse.conc    <- rmserr(ds.exp$tempC.cp, predict.conc)$rmse
@@ -72,7 +73,7 @@ chi.fn <- function(Chi.vec, ds.exp, system.properties, fitting.para) {
 
 ds.exp <- get.phase.diagram.exp(dataset.file='~/Box/anywhere/dataset.csv')
 
-out <- multiStartoptim(c(-2), chi.fn, 
+out <- multiStartoptim(c(0.238), chi.fn, 
                        ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
 
 if (SAVE) {
