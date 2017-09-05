@@ -213,8 +213,8 @@ gibbs.d                    <- function(phi.polymer, phi.salt, ...) {
 #         dddg
 #     ))
 # }
-
 binodal.curve.fun_              <- function(x, phi.polymer.2, ...) {
+    
     phi.polymer.1 <- x[1]
     phi.salt <- x[2]
     phi.polymer <- c(phi.polymer.1, phi.polymer.2)
@@ -234,8 +234,7 @@ binodal.curve.fun_              <- function(x, phi.polymer.2, ...) {
 }
 binodal.curve_                  <- function( sysprop = NULL, fitting.para = NULL) {
     #' generate binodal curve
-    if (is.null(sysprop)) arg <- list(...)
-    else arg <- sysprop
+    arg <- sysprop
     
     c.point <- fitting.para$default.critical.point
     
@@ -397,7 +396,8 @@ get.binodal.curve           <- function(tempC,
     # Condensation
     if (condensation) {
         lB <- 0.7E-9  # Bjerrum length at 298K
-        sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
+        # sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
+        sysprop$sigma[2] <- k.water.size / lB
         cat('condensation: current sigma[2] = ')
         cat(sysprop$sigma[2])
         cat('\n')
@@ -405,15 +405,17 @@ get.binodal.curve           <- function(tempC,
     if (counterion.release) {
         # update Bjerrum length and the effective charge density of RNA
         lB <- ke^2 / (kEr*kkB*(tempC+273.15))
-        sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
+        # sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
+        sysprop$sigma[2] <- k.water.size / lB
         cat('counterion release: current sigma[2] = ')
         cat(sysprop$sigma[2])
         cat('\n')
     } 
     
+    
     # # Chi
-    # Chi298 <- sysprop$Chi
-    # sysprop$Chi <- Chi298 * 298 / temp
+    Chi298 <- sysprop$Chi
+    sysprop$Chi <- Chi298 * 298 / temp
     # cat('Chipq, Chipw: ')
     # cat(sysprop$Chi[1,2])
     # cat(' ')

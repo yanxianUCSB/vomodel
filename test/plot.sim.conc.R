@@ -7,11 +7,11 @@ library(ggplot2)
 library(yxplot)
 
 DEBUG <<- T
-SAVE <<- T
+SAVE <<- F
 
 k.conc.salt       <<- 0.030
 k.conc.polymer    <<-  5E-6 * system.properties$MW[1] + 15E-3
-k.sim.temp.range  <<- seq(4, 44, 10)
+# k.sim.temp.range  <<- seq(4, 44, 10)
 
 # Water size
 # watersize <<- 3.1E-10
@@ -22,24 +22,28 @@ k.sim.temp.range  <<- seq(4, 44, 10)
 # k.water.size              <<- watersize
 # system.properties$size.ratio <-  c(k.amino.acid.length, k.dna.contour.unit.length, k.na.size, k.cl.size, k.water.size) / k.water.size
 
+# system.properties$size.ratio[1:4] <- c(2,2,1,1)
 
 # Chi
 Chi <-  matrix(rep(0, 25), 5, 5)
 Chi[1,2] <- -0
-Chi[1,5] <- 0.2482834
+Chi[1,5] <- 0.2271503
+# Chi[1,5] <- 0
 Chi[2,1] <- Chi[1,2]
 Chi[5,1] <- Chi[1,5]
 system.properties$Chi <- Chi
 
+fitting.para$counterion.release <- T
 
 
 # # #
-
-# fitting.para$binodal.guess <- 0.015
+fitting.para$sampling.start <- 1e-10
+fitting.para$sampling.gap <- 1e-5
+fitting.para$binodal.guess <- c(5e-3, 5e-3)
 
 phase.diagram.exp <- get.phase.diagram.exp(dataset.file = '~/Box/anywhere/dataset.csv')
 
-ds <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(4, 54, 10))
+ds <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(0, 40, 20))
 saveRDS(ds, 'out.test.ds.data')
 ds <- readRDS('out.test.ds.data')
 
@@ -73,24 +77,24 @@ g3 <- ggplot(ds3, aes(x = conc.salt, y = tempC)) +
          y = 'Temperature [C]', 
          col = '')
 
+g <- theme.background.1(g)
+g <- theme.title.text.1(g)
+g2 <- theme.background.1(g2)
+g2 <- theme.title.text.1(g2)
+g3 <- theme.background.1(g3)
+g3 <- theme.title.text.1(g3)
 if (!SAVE) {
-print(g)
-readline('>>> ')
-print(g2)
-readline('>>> ')
-print(g3)
-readline('>>> ')
+multiplot(g, g2, g3, cols = 3)
 }
 
 if(SAVE) {
-    g <- theme.background.1(g)
-    g <- theme.title.text.1(g)
     ggsave('plot.sim.conc.bncurve.png', g, width = 5, height = 5)
-    g2 <- theme.background.1(g2)
-    g2 <- theme.title.text.2(g2)
     ggsave( 'plot.sim.conc.conc.png', g2, width = 5, height = 5)
-    g3 <- theme.background.1(g3)
-    g3 <- theme.title.text.2(g3)
     ggsave( 'plot.sim.conc.nacl.png', g3, width = 5, height = 5)
+    saveRDS(object = ds, file = 'plot.sim.conc.ds', ascii = T)
+    saveRDS(object = ds2, file = 'plot.sim.conc.conc.ds', ascii = T)
+    saveRDS(object = ds3, file = 'plot.sim.conc.nacl.ds', ascii = T)
+    saveRDS(system.properties, 'plot.sim.conc.sysprop', ascii = T)
+    saveRDS(fitting.para, 'plot.sim.conc.fitpara', ascii = T)
 }
 

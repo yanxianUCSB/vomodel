@@ -73,6 +73,12 @@ chi.fn <- function(Chi.vec, ds.exp, system.properties, fitting.para) {
 
 ds.exp <- get.phase.diagram.exp(dataset.file='~/Box/anywhere/dataset.csv')
 
+# # #
+fitting.para$counterion.release <- T
+fitting.para$sampling.start <- 1e-10
+fitting.para$sampling.gap <- 1e-5
+fitting.para$binodal.guess <- c(5e-4, 5e-4)
+
 out <- multiStartoptim(c(0.238), chi.fn, 
                        ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
 
