@@ -28,7 +28,7 @@ fitting.para <- list(
     # c.point.temp.fun = c.point.temp.fun(c.point.temp(system.properties, fitting.para)) ,
     binodal.guess = c(1e-3, 1e-3),  # phi.polymer.2
     condensation = F,
-    counterion.release = F,
+    counterion.release = T,
     default.critical.point = list(phi.polymer=0.1, phi.salt=0.1)
 )
 

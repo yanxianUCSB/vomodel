@@ -11,7 +11,7 @@ library(numDeriv)
 # system.properties$sigma[2] <- 1
 # system.properties$MW[1] <- 22e3
 # system.properties$MW[2] <- 900e3
-# system.properties$size.ratio[1:4] <- c(6, 6, 1, 1)
+system.properties$size.ratio[1:4] <- c(3.103746, 8.542778, 2.300947, 2.300947)
 # system.properties$molar.ratio[1:2] <- c(3000, 10)
 # fitting.para$sampling.start <- 1e-10
 # fitting.para$sampling.end <- 0.1
@@ -19,7 +19,7 @@ library(numDeriv)
 fitting.para$condensation <- F
 fitting.para$counterion.release <- T
 # fitting.para$binodal.guess <- c(1e-4, 1e-4)
-fitting.para$binodal.guess <- c(1e-4, 1e-5)
+fitting.para$binodal.guess <- c(1e-4, 5e-4)
 
 
 # alpha
@@ -33,7 +33,7 @@ fitting.para$binodal.guess <- c(1e-4, 1e-5)
 
 # phase diagram at 4, 14, 24, 34, 44 C
 ds <- bind_rows(lapply(seq(1, 1, 10), function(size.ratio12){
-    bind_rows(lapply(seq(0, 60, 30), function(tempC){
+    bind_rows(lapply(seq(0, 60, 60), function(tempC){
         bind_rows(lapply(seq(0, 0, 1), function(chipq){
             bind_rows(lapply(seq(-0, -0, 0.1), function(chipw){
                 

@@ -22,12 +22,12 @@ k.conc.polymer    <<-  5E-6 * system.properties$MW[1] + 15E-3
 # k.water.size              <<- watersize
 # system.properties$size.ratio <-  c(k.amino.acid.length, k.dna.contour.unit.length, k.na.size, k.cl.size, k.water.size) / k.water.size
 
-# system.properties$size.ratio[1:4] <- c(2,2,1,1)
+system.properties$size.ratio[1:4] <- c(4.03746, 10.542778, 2.550947, 2.550947)
 
 # Chi
 Chi <-  matrix(rep(0, 25), 5, 5)
 Chi[1,2] <- -0
-Chi[1,5] <- 0.2271503
+Chi[1,5] <- 0
 # Chi[1,5] <- 0
 Chi[2,1] <- Chi[1,2]
 Chi[5,1] <- Chi[1,5]
@@ -36,10 +36,11 @@ system.properties$Chi <- Chi
 fitting.para$counterion.release <- T
 
 
+
 # # #
-fitting.para$sampling.start <- 1e-10
-fitting.para$sampling.gap <- 1e-5
-fitting.para$binodal.guess <- c(5e-3, 5e-3)
+# fitting.para$sampling.start <- 1e-10
+# fitting.para$sampling.gap <- 1e-5
+fitting.para$binodal.guess <- c(1e-3, 5e-3)
 
 phase.diagram.exp <- get.phase.diagram.exp(dataset.file = '~/Box/anywhere/dataset.csv')
 
