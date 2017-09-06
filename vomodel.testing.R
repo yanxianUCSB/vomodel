@@ -513,7 +513,10 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.c
     
     ds2 <- lapply(unique(ds$tempC), function(tempc) {
         ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute')
-        ds.t2 <- ds %>% filter(tempC == tempc, phase == 'dense')
+        
+        if (min(ds.t1$conc.polymer) > 0.125) return()
+        if (max(ds.t1$conc.polymer) < 0.125) return()
+        
         ds3 <- rbind(
             data.frame(conc.salt = k.conc.salt) %>%
                 mutate(
@@ -530,8 +533,7 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.c
     
     ds3 <- do.call(rbind, ds2) 
     if(is.null(ds3)) return()
-    ds4 <- ds3
-    # ds4 <- ds3 %>% filter(conc.polymer < 500, conc.polymer > 0) %>% select(conc.polymer, tempC)
+    ds4 <- ds3 %>% select(conc.polymer, tempC)
     return(ds4)
     
 }
