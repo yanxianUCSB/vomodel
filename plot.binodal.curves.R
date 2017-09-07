@@ -11,7 +11,11 @@ library(numDeriv)
 # system.properties$sigma[2] <- 1
 # system.properties$MW[1] <- 22e3
 # system.properties$MW[2] <- 900e3
-system.properties$size.ratio[1:4] <- c(3.103746, 8.542778, 2.300947, 2.300947)
+a <- 2.22
+b <- 5
+c <- 2
+# system.properties$size.ratio[1:4] <- c(2.359061, 6.606207,  3.5,  3.5)
+system.properties$size.ratio[1:4] <- c(a, a*b, c, c)
 # system.properties$molar.ratio[1:2] <- c(3000, 10)
 # fitting.para$sampling.start <- 1e-10
 # fitting.para$sampling.end <- 0.1
@@ -19,7 +23,7 @@ system.properties$size.ratio[1:4] <- c(3.103746, 8.542778, 2.300947, 2.300947)
 fitting.para$condensation <- F
 fitting.para$counterion.release <- T
 # fitting.para$binodal.guess <- c(1e-4, 1e-4)
-fitting.para$binodal.guess <- c(1e-4, 5e-4)
+fitting.para$binodal.guess <- c(1e-3, 5e-3)
 
 
 # alpha
@@ -33,18 +37,23 @@ fitting.para$binodal.guess <- c(1e-4, 5e-4)
 
 # phase diagram at 4, 14, 24, 34, 44 C
 ds <- bind_rows(lapply(seq(1, 1, 10), function(size.ratio12){
-    bind_rows(lapply(seq(0, 60, 60), function(tempC){
+    bind_rows(lapply(seq(10, 40, 30), function(tempC){
         bind_rows(lapply(seq(0, 0, 1), function(chipq){
             bind_rows(lapply(seq(-0, -0, 0.1), function(chipw){
                 
+                chipp <- 0
+                chipq <- 0
+                chipw <- 0
+                chiqw <- -1.5
                 # system.properties$size.ratio[1:4] <- c(size.ratio12, size.ratio12, 2, 2)
-                system.properties$Chi <- matrix(c(
-                    0, chipq, 0,0,chipw,
-                    chipq,0,0,0,0,
-                    0,0,0,0,0,
-                    0,0,0,0,0,
-                    chipw,0,0,0,0
-                ), 5, 5)
+                Chi <-  matrix(rep(0, 25), 5, 5)
+                Chi[1,2] <- chipq
+                Chi[1,5] <- chipw
+                Chi[2,5] <- chiqw
+                Chi[1,1] <- chipp
+                # Chi[1,5] <- 0
+                Chi <- Chi + t(Chi)
+                system.properties$Chi <- Chi
                 d <- get.phase.diagram(system.properties, fitting.para, temp.range = tempC) 
                 if(!is.null(d))
                     d <- d %>% mutate(chipq = chipq,

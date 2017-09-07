@@ -34,22 +34,25 @@ get.phase.diagram.exp <- function(dataset.file = 'dataset.csv') {
 
 chi.fn <- function(x, ds.exp, system.properties, fitting.para) {
     Chi      <- matrix(rep(0, 25), 5, 5)
+    Chi[2,5] <- x[4]
     Chi      <- Chi + t(Chi)
     system.properties$Chi <- Chi
     
-    system.properties$size.ratio[1:2] <- x[1:2]
+    system.properties$size.ratio[1:2] <- c(x[1], x[1]*x[2])
     system.properties$size.ratio[3:4] <- x[3]
     
     # cat('current guess Chi\n')
     # print(Chi)
+    cat('current x')
+    print(x)
     cat('current size.ratio\n')
     print(system.properties$size.ratio)
     
-    ds.sim      <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(0, 50, 10))
+    ds.sim      <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(0, 50, 5))
     if (is.null(ds.sim)) return(k.NULLPUNISH)
     
-    cat('current binodal curve \n')
-    print(head(ds.sim[c('phi.polymer', 'phi.salt')]))
+    # cat('current binodal curve \n')
+    # print(head(ds.sim[c('phi.polymer', 'phi.salt')]))
     
     ds.sim.conc <- get.phase.diagram.temp.conc(ds.sim, system.properties)
     ds.sim.nacl <- get.phase.diagram.temp.nacl(ds.sim, system.properties)
@@ -80,9 +83,9 @@ ds.exp <- get.phase.diagram.exp(dataset.file='~/Box/anywhere/dataset.csv')
 fitting.para$counterion.release <- T
 # fitting.para$sampling.start <- 1e-10
 # fitting.para$sampling.gap <- 1e-5
-fitting.para$binodal.guess <- c(1e-3, 5e-3)
+fitting.para$binodal.guess <- c(5e-3, 5e-3)
 
-out <- multiStartoptim(c(4.097527, 8.635165, 2.248598 ), chi.fn, 
+out <- multiStartoptim(c(2.22, 5, 2, -1.5), chi.fn, 
                        ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
 
 if (SAVE) {
