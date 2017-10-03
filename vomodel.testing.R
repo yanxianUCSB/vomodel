@@ -406,7 +406,11 @@ get.binodal.curve           <- function(tempC,
         # update Bjerrum length and the effective charge density of RNA
         lB <- ke^2 / (kEr*kkB*(tempC+273.15))
         # sysprop$sigma[2] <- sysprop$size.ratio[2]*k.water.size / lB
-        sysprop$sigma[2] <- k.water.size / lB
+        if (k.water.size > lB) {
+            sysprop$sigma[2] <- 1
+        } else {
+            sysprop$sigma[2] <- k.water.size / lB
+        }
         cat('counterion release: current sigma[2] = ')
         cat(sysprop$sigma[2])
         cat('\n')
