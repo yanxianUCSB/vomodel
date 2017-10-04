@@ -563,17 +563,11 @@ pd2turbidity.nacl <- function(phase.diagram.ds, phip) {
 }
 get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.phi.salt = 0.0025) {
     if (is.null(phase.diagram.ds)) return()
-    # //TODO:
-    # precision <- 1e-5
-    
     ds <- as.data.frame(phase.diagram.ds)
-    
     ds2 <- lapply(unique(ds$tempC), function(tempc) {
         ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute')
         ds.t2 <- ds %>% filter(tempC == tempc, phase == 'dense')
-        
         if(k.phi.salt > max(c(ds.t1$phi.salt, ds.t2$phi.salt))) return()
-        
         ds3 <- rbind(
             data.frame(phi.salt = k.phi.salt) %>%
                 mutate(
@@ -591,52 +585,27 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.p
             mutate(
                 tempC = tempc
             ) 
-        
         return(ds3)
     })
-    
     ds3 <- do.call(rbind, ds2) 
     if(is.null(ds3)) return()
     ds4 <- ds3 %>% filter(phi.polymer > 0) %>% select(phi.polymer, tempC, phase)
     return(ds4)
-    
 }
-get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, k.conc.polymer = 0.125) {
+get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, k.phi.polymer = 0.005) {
     if (is.null(phase.diagram.ds)) return()
-    
-    precision <- 1e-5
-    
     ds <- phase.diagram.ds
-    ds <- 
-        as.data.frame(ds) %>% 
-        mutate(conc.polymer = conc.p * system.properties$MW[1] + conc.q * system.properties$MW[2])
-    
-    ds2 <- lapply(unique(ds$tempC), function(tempc) {
+    ds2 <- bind_rows(lapply(unique(ds$tempC), function(tempc) {
         ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute') 
-        
-        if (min(ds.t1$conc.salt) > 30) return()
-        
-        ds3 <- rbind(
-            data.frame(conc.polymer = k.conc.polymer) %>%
-                mutate(
-                    conc.salt = spline(ds.t1$conc.polymer, ds.t1$conc.salt, xout = conc.polymer)$y,
-                    phase = 'dilute'
-                )
-        ) %>%
-            mutate(
-                conc.polymer = k.conc.polymer,
-                tempC = tempc
-            ) 
-        return(ds3)
-    })
-    
-    ds3 <- do.call(rbind, ds2) 
-    if (is.null(ds3)) return()
-    
-    ds4 <- ds3 %>% filter(conc.polymer < 20, conc.polymer > 0) %>% select(conc.salt, tempC)
-    return(ds4)
-    
+        if (k.phi.polymer < min(ds.t1$phi.polymer) || max(ds.t1$phi.polymer) < k.phi.polymer) return()
+        data.frame(phi.polymer = k.phi.polymer) %>% 
+            mutate(phi.salt = spline(ds.t1$phi.polymer, ds.t1$phi.salt, xout = k.phi.polymer)$y, 
+                   phase = 'dilute',
+                   tempC = tempc)
+    }))
+    return(ds2)
 }
+
 get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
     dataset <- read.csv(dataset.file) %>% 
         mutate(conc.polymer = protein * 1E-6 * system.properties$MW[1] + rna * 1E-3) %>% 
