@@ -14,7 +14,7 @@ library(numDeriv)
 # a <- 2.22
 # b <- 5
 # c <- 2
-# system.properties$size.ratio[1:4] <- c(2.359061, 6.606207,  3.5,  3.5)
+# system.properties$size.ratio[1:4] <- c(1.5,  4,  1,  1)
 # system.properties$size.ratio[1:4] <- c(a, a*b, c, c)
 # system.properties$molar.ratio[1:2] <- c(3000, 10)
 # fitting.para$sampling.start <- 1e-6
@@ -67,8 +67,7 @@ fitting.para$binodal.guess <- c(1e-3, 5e-5)
 # saveRDS(ds, 'out.test.ds.data')
 # ds <- readRDS('out.test.ds.data')
 
-ds <- get.phase.diagram(system.properties, fitting.para, seq(-150, -130, 10))
-# ds2 <- get.phase.diagram.temp.conc(ds, system.properties, k.conc.salt = 0.030)
+ds <- get.phase.diagram(system.properties, fitting.para, seq(0, 200, 100))
 # ds3 <- get.phase.diagram.temp.nacl(ds, system.properties, k.conc.polymer = 0.125)
 
 phase.diagram.exp <- get.phase.diagram.exp(dataset.file = '~/Box/anywhere/dataset.csv')
@@ -80,19 +79,19 @@ phase.diagram.exp <- get.phase.diagram.exp(dataset.file = '~/Box/anywhere/datase
 library(yxplot)
 library(ggplot2)
 g <- ggplot(ds, aes(x = phi.polymer, y = (phi.salt), group = tempC)) +
-    geom_label(data = ds %>% 
-                   group_by(tempC) %>% 
-                   mutate(max.phi = phi.polymer[which.min(abs(phi.polymer - quantile(phi.polymer, 0.9)))]) %>% 
-                   mutate(max.phis = 0.5 * max(phi.salt)) %>% 
-                   ungroup() %>% 
+    geom_label(data = ds %>%
+                   group_by(tempC) %>%
+                   mutate(max.phi = phi.polymer[which.min(abs(phi.polymer - quantile(phi.polymer, 0.9)))]) %>%
+                   mutate(max.phis = mean(phi.salt)) %>%
+                   ungroup() %>%
                    mutate(note = paste0(
                        'alpha = ', round(get.alpha(tempC + 273.15, k.water.size), 2), '\n',
                        'sigma = ', round(sigma.q, 2)
                    )),
-               aes(x = max.phi, 
+               aes(x = max.phi,
                    y = max.phis,
                    label = note,
-                   col = tempC), 
+                   col = tempC),
                show.legend = F) +
     geom_point(aes(col = tempC)) +
     scale_color_continuous(guide = 'legend', breaks = unique(ds$tempC)) +
@@ -103,7 +102,17 @@ g <- theme.background.1(g)
 g <- theme.title.text.1(g)
 print(g)
 
-ggsave('~/Desktop/ParaProteinRNA_Commit_e22424e.png', width = 6, height = 4)
+ggsave('~/Desktop/ParaProteinRNA_Commit_8253548_cirel.png', width = 6, height = 4)
+
+
+ds2 <- get.phase.diagram.temp.conc(ds, system.properties, k.phi.salt = 0.0028)
+g.temp.phi.polymer <- ggplot(ds2, aes(x = phi.polymer, y = tempC)) +
+    geom_point( size = 2) +
+    # geom_line(aes(col = 'sim'), lwd = 1.5) +
+    labs(x = 'Total Polymer Frac. [%]',
+         y = 'Salt Frac. [%]',
+         col = '')
+print(g.temp.phi.polymer)
 
 stop()
 

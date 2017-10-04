@@ -507,8 +507,61 @@ get.phase.diagram           <- function(system.properties, fitting.para, temp.ra
     
     return(out) 
 }
-
-get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.conc.salt = 0.030) {
+pd2turbidity <- function(phase.diagram.ds, phi.p.s) {
+    ds <- as.data.frame(phase.diagram.ds)
+    phip <- phi.p.s[1]
+    phis <- phi.p.s[2]
+    if (is.null(ds)) return()
+    if (phis > max(ds$phi.salt)) return()
+    
+    ds2 <- bind_rows(lapply(unique(ds$tempC), function(tempc) {
+        ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute')
+        ds.t2 <- ds %>% filter(tempC == tempc, phase == 'dense')
+        if (phis < max(c(ds.t1$phi.salt))) {
+            phip.dilute <- spline(ds.t1$phi.salt, ds.t1$phi.polymer, xout = phis)$y
+            phip.dense <- spline(ds.t2$phi.salt, ds.t2$phi.polymer, xout = phis)$y
+            if (phip.dilute < phip && phip < phip.dense) {
+                percent <- abs(phip - phip.dilute) / abs(phip.dense - phip.dilute)
+            } else {
+                percent = 0
+            }
+        } else {
+            percent = 0
+        }
+        return(
+            data.frame(tempC = tempc,
+                       percent = percent,
+                       phi.polymer = phip,
+                       phi.salt = phis)
+        )
+    }))
+    return(ds2)
+}
+pd2turbidity.nacl <- function(phase.diagram.ds, phip) {
+    ds <- as.data.frame(phase.diagram.ds)
+    if (is.null(ds)) return(NULL)
+    ds2 <- bind_rows(lapply(unique(ds$tempC), function(tempc){
+        ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute')
+        ds.t2 <- ds %>% filter(tempC == tempc, phase == 'dense')
+        return(bind_rows(lapply(ds.t1$phi.salt, function(phis){
+            phip.dilute <- ds.t1$phi.polymer[which(ds.t1$phi.salt == phis)]
+            phip.dense <- ds.t2$phi.polymer[which(ds.t2$phi.salt == phis)]
+            if (phip.dilute < phip && phip < phip.dense) {
+                percent <- abs(phip - phip.dilute) / abs(phip.dense - phip.dilute)
+            } else {
+                percent = 0
+            }
+            data.frame(
+                tempC = tempc,
+                percent = percent,
+                phi.polymer = phip,
+                phi.salt = phis
+                       )
+        })))
+    }))
+    return(ds2)
+}
+get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.phi.salt = 0.0025) {
     if (is.null(phase.diagram.ds)) return()
     # //TODO:
     # precision <- 1e-5
@@ -519,19 +572,19 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.c
         ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute')
         ds.t2 <- ds %>% filter(tempC == tempc, phase == 'dense')
         
-        if(k.conc.salt > max(c(ds.t1$conc.salt, ds.t2$conc.salt))) return()
+        if(k.phi.salt > max(c(ds.t1$phi.salt, ds.t2$phi.salt))) return()
         
         ds3 <- rbind(
-            data.frame(conc.salt = k.conc.salt) %>%
+            data.frame(phi.salt = k.phi.salt) %>%
                 mutate(
-                    conc.polymer = spline(ds.t1$conc.salt, ds.t1$conc.polymer, xout = conc.salt)$y,
-                    conc.salt = k.conc.salt,
+                    phi.polymer = spline(ds.t1$phi.salt, ds.t1$phi.polymer, xout = phi.salt)$y,
+                    phi.salt = k.phi.salt,
                     phase = 'dilute'
                 ),
-            data.frame(conc.salt = k.conc.salt) %>% 
+            data.frame(phi.salt = k.phi.salt) %>% 
                 mutate(
-                    conc.polymer = spline(ds.t2$conc.salt, ds.t2$conc.polymer, xout = conc.salt)$y,
-                    conc.salt = k.conc.salt,
+                    phi.polymer = spline(ds.t2$phi.salt, ds.t2$phi.polymer, xout = phi.salt)$y,
+                    phi.salt = k.phi.salt,
                     phase = 'dense'
                 )
         ) %>%
@@ -544,7 +597,7 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.c
     
     ds3 <- do.call(rbind, ds2) 
     if(is.null(ds3)) return()
-    ds4 <- ds3 %>% filter(conc.polymer > 0) %>% select(conc.polymer, tempC)
+    ds4 <- ds3 %>% filter(phi.polymer > 0) %>% select(phi.polymer, tempC, phase)
     return(ds4)
     
 }
