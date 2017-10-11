@@ -7,7 +7,7 @@ library(ggplot2)
 library(yxplot)
 
 DEBUG <<- T
-SAVE <<- F
+SAVE <<- T
 
 k.conc.salt       <<- 0.030
 k.conc.polymer    <<-  5E-6 * system.properties$MW[1] + 15E-3
@@ -27,23 +27,23 @@ k.conc.polymer    <<-  5E-6 * system.properties$MW[1] + 15E-3
 # Chi
 Chi <-  matrix(rep(0, 25), 5, 5)
 Chi[1,2] <- -0
-Chi[1,5] <- 0.2271503
+Chi[1,5] <- 0
 # Chi[1,5] <- 0
 Chi[2,1] <- Chi[1,2]
 Chi[5,1] <- Chi[1,5]
 system.properties$Chi <- Chi
 
-fitting.para$counterion.release <- T
+fitting.para$counterion.release <- F
 
 
 # # #
 fitting.para$sampling.start <- 1e-10
 fitting.para$sampling.gap <- 1e-5
-fitting.para$binodal.guess <- c(5e-3, 5e-3)
+fitting.para$binodal.guess <- c(1e-3, 5e-3)
 
 phase.diagram.exp <- get.phase.diagram.exp(dataset.file = '~/Box/anywhere/dataset.csv')
 
-ds <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(0, 40, 20))
+ds <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(-160, -120, 5))
 saveRDS(ds, 'out.test.ds.data')
 ds <- readRDS('out.test.ds.data')
 
@@ -64,15 +64,15 @@ g <- ggplot(ds, aes(x = conc.polymer, y = conc.salt, group = tempC)) +
 g2 <- ggplot(ds2 %>% filter(conc.polymer < 20), aes(x = conc.polymer, y = tempC)) + 
     geom_line(aes(col = 'sim'), lwd = 2) +
     geom_point(data = phase.diagram.exp %>% filter(conc.salt == 0.03), aes(x = conc.polymer, y = tempC.cp, col = 'exp.cp')) +
-    geom_point(data = phase.diagram.exp %>% filter(conc.salt == 0.03), aes(x = conc.polymer, y = tempC.on, col = 'exp.on')) +
+    # geom_point(data = phase.diagram.exp %>% filter(conc.salt == 0.03), aes(x = conc.polymer, y = tempC.on, col = 'exp.on')) +
     labs(x = 'Conc.polymer[mg/mL]', 
          y = 'Temperature [C]', 
-         col = '')
+         col = '') 
 
 g3 <- ggplot(ds3, aes(x = conc.salt, y = tempC)) + 
     geom_line(aes(col = 'sim'), lwd = 2) +
     geom_point(data = phase.diagram.exp %>% filter(abs(conc.polymer - 0.125) < 1e-3), aes(x = conc.salt, y = tempC.cp, col = 'exp.cp')) +
-    geom_point(data = phase.diagram.exp %>% filter(abs(conc.polymer - 0.125) < 1e-3), aes(x = conc.salt, y = tempC.on, col = 'exp.on')) +
+    # geom_point(data = phase.diagram.exp %>% filter(abs(conc.polymer - 0.125) < 1e-3), aes(x = conc.salt, y = tempC.on, col = 'exp.on')) +
     labs(x = 'NaCl [M]', 
          y = 'Temperature [C]', 
          col = '')
