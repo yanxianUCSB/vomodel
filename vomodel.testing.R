@@ -580,7 +580,9 @@ get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
         select(conc.polymer, conc.salt, tempC.cp, tempC.on) %>% 
         group_by(conc.polymer, conc.salt) %>% 
         mutate(tempC.cpm = mean(tempC.cp),
-               tempC.onm = mean(tempC.on)) %>% 
+               tempC.onm = mean(tempC.on),
+               tempC.cpsd = sd(tempC.cp),
+               tempC.onsd = sd(tempC.on)) %>% 
         ungroup()
     dataset <- dataset[!duplicated(dataset[c('conc.polymer', 'conc.salt')]), ]
     return(dataset)

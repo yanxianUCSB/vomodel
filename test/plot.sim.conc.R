@@ -62,10 +62,18 @@ g <- ggplot(ds, aes(x = conc.polymer, y = conc.salt, group = tempC)) +
     
 
 g2.transform <- function(x){-log(50-x)}
-g2 <- ggplot(ds2 %>% filter(conc.polymer < 20), aes(x = conc.polymer, y = g2.transform(tempC))) + 
-    geom_point(aes(pch = 'model'), size = 2) +
+g2 <- ggplot() + 
+    geom_point(data = ds2 %>% filter(conc.polymer < 20), 
+               aes(x = conc.polymer, y = g2.transform(tempC), pch = 'model'), 
+               size = 3) +
     geom_point(data = phase.diagram.exp %>% filter(conc.salt == 0.03),
-               aes(x = conc.polymer, y = g2.transform(tempC.cp), pch = 'experiment')) +
+               aes(x = conc.polymer, y = g2.transform(tempC.cpm), pch = 'experiment'),
+               size = 3) +
+    geom_errorbar(aes(x = conc.polymer,
+                      ymax = g2.transform(tempC.cpm + tempC.cpsd),
+                      ymin = g2.transform(tempC.cpm - tempC.cpsd)
+                      ), data = phase.diagram.exp %>% filter(conc.salt == 0.03),
+                  lwd = 1) +
     # geom_point(data = phase.diagram.exp %>% filter(conc.salt == 0.03), aes(x = conc.polymer, y = tempC.on, col = 'exp.on')) +
     scale_y_continuous(limits = g2.transform(c(-160, 40)),
                      breaks = g2.transform(seq(-160, 40, 40)), 
@@ -75,11 +83,18 @@ g2 <- ggplot(ds2 %>% filter(conc.polymer < 20), aes(x = conc.polymer, y = g2.tra
          pch = '') 
 
 g3.transform <- function(x){-log(50-x)}
-g3 <- ggplot(ds3, aes(x = conc.salt, y = g3.transform(tempC))) + 
-    geom_point(aes( pch = 'model'), size = 2) +
+g3 <- ggplot() + 
+    geom_point(data = ds3, 
+               aes(x = conc.salt, y = g3.transform(tempC), pch = 'model'), 
+               size = 3) +
     geom_point(data = phase.diagram.exp %>% filter(abs(conc.polymer - 0.125) < 1e-3),
-               aes(x = conc.salt, y = g3.transform(tempC.cp), pch = 'experiment'),
-               size = 2) +
+               aes(x = conc.salt, y = g3.transform(tempC.cpm), pch = 'experiment'),
+               size = 3) +
+    geom_errorbar(aes(x = conc.salt,
+                      ymax = g2.transform(tempC.cpm + tempC.cpsd),
+                      ymin = g2.transform(tempC.cpm - tempC.cpsd)
+                      ), 
+                  data = phase.diagram.exp %>% filter(abs(conc.polymer - 0.125) < 1e-3)) +
     scale_y_continuous(limits = g3.transform(c(-160, 40)),
                      breaks = g3.transform(seq(-160, 40, 40)), 
                      labels = seq(-160, 40, 40)) +
@@ -88,7 +103,6 @@ g3 <- ggplot(ds3, aes(x = conc.salt, y = g3.transform(tempC))) +
          y = 'Temperature [C]', 
          pch = '') 
  
-g3 
 g <- theme.background.1(g)
 g <- theme.title.text.1(g)
 g2 <- theme.background.1(g2)
