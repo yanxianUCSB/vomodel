@@ -14,7 +14,7 @@ SAVE <<- T
 k.conc.salt  <<- 0.030
 k.conc.polymer  <<-  5E-6 * system.properties$MW[1] + 15E-3
 # k.sim.temp.range  <<- seq(0, 50, 10)
-k.NULLPUNISH  <<- 1E10
+k.NULLPUNISH  <<- 1E5
 # DEBUG.k.pd.sim <<- pd.sim
 
 # sp <- system.properties
@@ -32,21 +32,27 @@ get.phase.diagram.exp <- function(dataset.file = 'dataset.csv') {
         
 }
 
-chi.fn <- function(Chi.vec, ds.exp, system.properties, fitting.para) {
+chi.fn <- function(x, ds.exp, system.properties, fitting.para) {
+    system.properties$size.ratio[1:2] <- c(x[1], x[1]*x[2])
+    system.properties$size.ratio[3:4] <- x[3]
+    
     Chi      <- matrix(rep(0, 25), 5, 5)
-    # Chi[1,2] <- Chi.vec[1]
-    Chi[1,5] <- Chi.vec[1]
+    Chi[2,5] <- -1.5
     Chi      <- Chi + t(Chi)
     system.properties$Chi <- Chi
     
-    cat('current guess Chi\n')
-    print(Chi)
+    # cat('current guess Chi\n')
+    # print(Chi)
+    cat('current x')
+    print(x)
+    cat('current size.ratio\n')
+    print(system.properties$size.ratio)
     
-    ds.sim      <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(0, 50, 10))
+    ds.sim      <- get.phase.diagram(system.properties, fitting.para, temp.range = seq(10, 50, 10))
     if (is.null(ds.sim)) return(k.NULLPUNISH)
     
-    cat('current binodal curve \n')
-    print(head(ds.sim[c('phi.polymer', 'phi.salt')]))
+    # cat('current binodal curve \n')
+    # print(head(ds.sim[c('phi.polymer', 'phi.salt')]))
     
     ds.sim.conc <- get.phase.diagram.temp.conc(ds.sim, system.properties)
     ds.sim.nacl <- get.phase.diagram.temp.nacl(ds.sim, system.properties)
@@ -61,25 +67,27 @@ chi.fn <- function(Chi.vec, ds.exp, system.properties, fitting.para) {
     rmse.conc[2] <- rmserr(ds.exp$tempC.on, predict.conc)$rmse
     rmse.nacl    <- rmserr(ds.exp$tempC.cp, predict.nacl)$rmse
     rmse.nacl[2] <- rmserr(ds.exp$tempC.on, predict.nacl)$rmse
-    print(rmse.conc)
-    print(rmse.nacl)
+    s <- sum(c(rmse.conc, rmse.nacl))
     # stop()
     # rmse.conc    <- rmserr(ds.exp$tempC.cp, spline(ds.sim.conc$conc.polymer, ds.sim.conc$tempC, xout = ds.exp$conc.polymer)$y )$rmse
     # rmse.conc[2] <- rmserr(ds.exp$tempC.on, spline(ds.sim.conc$conc.polymer, ds.sim.conc$tempC, xout = ds.exp$conc.polymer)$y )$rmse
     # rmse.nacl    <- rmserr(ds.exp$tempC.cp, spline(ds.sim.nacl$conc.salt,    ds.sim.nacl$tempC, xout = ds.exp$conc.salt   )$y )$rmse
     # rmse.nacl[2] <- rmserr(ds.exp$tempC.on, spline(ds.sim.nacl$conc.salt,    ds.sim.nacl$tempC, xout = ds.exp$conc.salt   )$y )$rmse
-    return(sum(c(rmse.conc, rmse.nacl)))
+    print(rmse.conc)
+    print(rmse.nacl)
+    print(s)
+    return(s)
 }
 
 ds.exp <- get.phase.diagram.exp(dataset.file='~/Box/anywhere/dataset.csv')
 
 # # #
 fitting.para$counterion.release <- T
-fitting.para$sampling.start <- 1e-10
-fitting.para$sampling.gap <- 1e-5
-fitting.para$binodal.guess <- c(5e-4, 5e-4)
+# fitting.para$sampling.start <- 1e-10
+# fitting.para$sampling.gap <- 1e-5
+fitting.para$binodal.guess <- c(5e-3, 5e-3)
 
-out <- multiStartoptim(c(0.238), chi.fn, 
+out <- optim( par = c(2.22, 5, 2.1), fn = chi.fn, 
                        ds.exp=ds.exp, system.properties=system.properties, fitting.para=fitting.para)
 
 if (SAVE) {

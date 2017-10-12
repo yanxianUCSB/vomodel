@@ -22,18 +22,23 @@ k.conc.polymer    <<-  5E-6 * system.properties$MW[1] + 15E-3
 # k.water.size              <<- watersize
 # system.properties$size.ratio <-  c(k.amino.acid.length, k.dna.contour.unit.length, k.na.size, k.cl.size, k.water.size) / k.water.size
 
-# system.properties$size.ratio[1:4] <- c(2,2,1,1)
+# a <- 2.22
+# b <- 5
+# c <- 2
+system.properties$size.ratio[1:4] <- c(2.818831, 13.912664,  1.288291,  1.288291)
+# system.properties$size.ratio[1:4] <- c(a, a*b, c, c)
 
 # Chi
 Chi <-  matrix(rep(0, 25), 5, 5)
 Chi[1,2] <- -0
 Chi[1,5] <- 0
+
 # Chi[1,5] <- 0
-Chi[2,1] <- Chi[1,2]
-Chi[5,1] <- Chi[1,5]
+Chi <- Chi + t(Chi)
 system.properties$Chi <- Chi
 
 fitting.para$counterion.release <- F
+
 
 
 # # #
