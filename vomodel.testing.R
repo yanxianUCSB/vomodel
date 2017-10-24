@@ -551,19 +551,30 @@ get.phase.diagram.temp.conc <- function(phase.diagram.ds, system.properties, k.p
     ds4 <- ds3 %>% filter(phi.polymer > 0) 
     return(ds4)
 }
-get.phase.diagram.temp.nacl <- function(phase.diagram.ds, system.properties, k.phi.polymer = 0.005) {
-    if (is.null(phase.diagram.ds)) return()
-    ds <- phase.diagram.ds
-    ds2 <- bind_rows(lapply(unique(ds$tempC), function(tempc) {
-        ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute') 
-        if (k.phi.polymer < min(ds.t1$phi.polymer) || max(ds.t1$phi.polymer) < k.phi.polymer) return()
-        data.frame(phi.polymer = k.phi.polymer) %>% 
-            mutate(phi.salt = spline(ds.t1$phi.polymer, ds.t1$phi.salt, xout = k.phi.polymer)$y, 
-                   phase = 'dilute',
-                   tempC = tempc)
-    }))
-    return(ds2)
-}
+get.phase.diagram.temp.nacl <-
+    function(phase.diagram.ds,
+             system.properties,
+             k.phi.polymer = 0.005) {
+        if (is.null(phase.diagram.ds))
+            return()
+        ds <- phase.diagram.ds
+        ds2 <- bind_rows(lapply(unique(ds$tempC), function(tempc) {
+            ds.t1 <- ds %>% filter(tempC == tempc, phase == 'dilute')
+            if (k.phi.polymer < min(ds.t1$phi.polymer) || max(ds.t1$phi.polymer) < k.phi.polymer) return()
+            data.frame(phi.polymer = k.phi.polymer) %>%
+                mutate(
+                    phi.salt = spline(c(0, ds.t1$phi.polymer), c(0, ds.t1$phi.salt), 
+                                      xout = k.phi.polymer)$y,
+                    conc.salt = spline(c(0, ds.t1$phi.polymer), c(0, ds.t1$conc.salt), 
+                                       xout = k.phi.polymer)$y,
+                    conc.mass.polymer = spline(c(0, ds.t1$phi.polymer), c(0, ds.t1$conc.mass.polymer), 
+                                               xout = k.phi.polymer)$y,
+                    phase = 'dilute',
+                    tempC = tempc
+                )
+        }))
+        return(ds2)
+    }
 
 get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
     dataset <- read.csv(dataset.file) %>% 
