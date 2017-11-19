@@ -481,4 +481,11 @@ get.phase.diagram.exp       <- function(dataset.file = 'dataset.csv') {
     dataset <- dataset[!duplicated(dataset[c('conc.polymer', 'conc.salt')]), ]
     return(dataset)
 }
-
+get.vocurve.at.tempC        <- function(tempC, sysprop, fitpar){
+  return(get.binodal.curve(tempC = tempC, sysprop = sysprop, fitting.para = fitpar,
+                           condensation = F, counterion.release = F))
+}
+get.advocurve.at.tempC      <- function(tempC, sysprop, fitpar){
+  return(get.binodal.curve(tempC = tempC, sysprop = sysprop, fitting.para = fitpar,
+                           condensation = T, counterion.release = T))
+}
