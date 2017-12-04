@@ -489,3 +489,13 @@ get.advocurve.at.tempC      <- function(tempC, sysprop, fitpar){
   return(get.binodal.curve(tempC = tempC, sysprop = sysprop, fitting.para = fitpar,
                            condensation = T, counterion.release = T))
 }
+get.5phi.from.2phi <- function(phi, sysprop) {
+  kpq <- pkpq(sysprop = sysprop)
+  return(c(
+    phip = phi[1] * kpq/(1+kpq),
+    phiq = phi[1] * 1/(1+kpq),
+    phisp = phi[2] /2,
+    phisq = phi[2] /2,
+    phiw = 1 - phi[1] - phi[2]
+  ))
+}
