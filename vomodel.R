@@ -92,13 +92,14 @@ get_expt  <- function() {
 # Wed Apr 18 23:28:38 2018 ------------this part runs the simulation ------------------
 # 
 sim_ <- function(x){
+  x <- as.numeric(x)
   phi2 <- x[1]
   phi3 <- x[2]
   temp <- x[3]
   initial_guesses <- phi2 + (1-phi2) * c(0.0001, 0.5)
   phi1 <- NULL
   tryCatch({
-    phi1 <- uniroot(
+    root <- uniroot(
       f = fn,
       interval = initial_guesses,
       phi2 = phi2,
@@ -109,6 +110,7 @@ sim_ <- function(x){
       sigma   = SIGMA,
       p2p1    = p2p1
     )
+    phi1 <- root$root
   }, error=function(e){
     phi1 <- NA
   }, warnings=function(w){
