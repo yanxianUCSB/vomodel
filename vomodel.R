@@ -131,5 +131,4 @@ simulate  <- function(){
       write.csv('simulated.csv', row.names = F)
   }
 }
-
-
+simulate()

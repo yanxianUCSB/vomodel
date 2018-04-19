@@ -1,7 +1,7 @@
 source('vomodel.r')
 
 # Parameters
-POLYNUM       <<- c(100, 100,   1, 1, 1)
+POLYNUM       <<- c(200, 200,   1, 1, 1)
 SIGMA         <<- c(1 / 1, 1,   1, 1, 0)  # charge per monomer
 SIZE          <<- c(1, 1, 1, 1, 1) * 0.31E-9  # m; Voorn Overbeek 1967
 MW            <<- c(1, 1)
@@ -13,22 +13,64 @@ get_ref <- function(){
   library(dplyr)
   path <- 'ref.chimad.txt'
   read.csv(path, sep = '\t') %>% 
-    select(phi1 = VolumeFraction, phi3=Binodal) %>% 
-    mutate(temp = 298.15) ->
+    mutate(phi1 = VolumeFraction / 2, phi3=Binodal / 2) %>% 
+    mutate(temp = 298.15) %>% 
+    arrange(phi1) %>% 
+    select(phi1, phi3, temp) ->
     ds
   ds %>% saveRDS('ref.rds')
   return(ds)
+}
+fn        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
+  chi <- 0
+  phi_1 <-
+    c(phi1, p2p1 * phi1, phi3, phi3, 1 - phi1 - p2p1 * phi1 - 2 * phi3)
+  phi_2 <-
+    c(phi2, p2p1 * phi2, phi3, phi3, 1 - phi2 - p2p1 * phi2 - 2 * phi3)
+  diff <- 
+    d_gibbs(phi_2, temp, N, lattice, sigma, chi, p2p1) * (phi2 - phi1) -
+    gibbs(phi_2, temp, N, lattice, sigma, chi) +
+    gibbs(phi_1, temp, N, lattice, sigma, chi)
+}
+
+sim_ <- function(x){
+  x <- as.numeric(x)
+  phi2 <- x[1]
+  phi3 <- x[2]
+  temp <- x[3]
+  initial_guesses <- c(0.01, 0.2)
+  phi1 <- NULL
+  tryCatch({
+    root <- uniroot(
+      f = fn,
+      interval = initial_guesses,
+      phi2 = phi2,
+      phi3 = phi3,
+      temp = temp,
+      N       = POLYNUM,
+      lattice = k.water.size,
+      sigma   = SIGMA,
+      p2p1    = p2p1
+    )
+    phi1 <- root$root
+  }, error=function(e){
+    phi1 <- NA
+  }, warnings=function(w){
+  }, finally = {
+    phi1 <- ifelse(is.null(phi1), NA, phi1)
+  })
+  return(phi1)
 }
 # Thu Apr 19 10:15:02 2018  Test ---------------------- 
 test <- function(){
   library(ggplot2)
   # example <- as.matrix(get_expt())[2, 1:3]
-  example <- as.matrix(get_ref())[2, 1:3]
+  example <- as.numeric(as.matrix(get_ref())[2, 1:3])
   print(example)
   phi2 <- example[1]
   phi3 <- example[2]
   temp <- example[3]
-  initial_guesses <- phi2 + (1-phi2) * c(0, 0.5)
+  initial_guesses <- c(0.005, 0.01)
   x <- seq(initial_guesses[1], initial_guesses[2], 1e-3)
   y <- sapply(x, function(x){
     fn(
@@ -50,15 +92,21 @@ test <- function(){
 }
 test2 <- function(){
   ref <- get_ref()
-  phi_dense <- apply(as.matrix(ref), 1, sim_)
-  if(is.null(phi_dense) | 
-     is.na(unique(phi_dense))){
+  phi_dense <- apply(ref, 1, function(x) sim_(x))
+  if(F){
     print('No fit found!')
   } else {
-    expt %>% 
-      mutate(phi2 = phi_dense) %>% 
+    ref %>% 
+      mutate(phi2 = phi_dense) ->
+      ds
+    ds %>% 
       write.csv('simulated.csv', row.names = F)
+    return(ds)
   }
 }
 # simulate()
-test()
+testds <- test2() %>% select(-temp)
+print(testds)
+plot(testds)
+
+# plot(get_ref())
