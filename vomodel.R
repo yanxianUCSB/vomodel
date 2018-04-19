@@ -16,7 +16,7 @@ MOLARRATIO    <<- c(2939,  11, 0.5, 0.5, 0)  # the polycation:polyanion and cati
 p2p1          <<- (POLYNUM[2] * MOLARRATIO[2] * SIZE[2]^3 ) / 
   (POLYNUM[1] * MOLARRATIO[1] * SIZE[1]^3 )  # the volume fraction ratio between specie 1 and specie 2
 
-# Wed Apr 18 23:30:28 2018 ------------------------------
+# Wed Apr 18 23:30:28 2018 --------------system definition -------------
 #' System is defined as phi, temp, N, lattice, sigma, chi
 get_alpha <- function(temp, lattice) {
   2 / 3 * sqrt(pi) * ((ke ^ 2 / (kEr * kkB * temp)) / lattice) ^ (3 / 2)
@@ -89,37 +89,37 @@ get_expt  <- function() {
     saveRDS('expt.rds')
   return(ds)
 }
-# Wed Apr 18 23:28:38 2018 ------------------------------
-# this part runs the simulation
+# Wed Apr 18 23:28:38 2018 ------------this part runs the simulation ------------------
+# 
+sim_ <- function(x){
+  phi2 <- x[1]
+  phi3 <- x[2]
+  temp <- x[3]
+  initial_guesses <- phi2 + (1-phi2) * c(0.0001, 0.5)
+  phi1 <- NULL
+  tryCatch({
+    phi1 <- uniroot(
+      f = fn,
+      interval = initial_guesses,
+      phi2 = phi2,
+      phi3 = phi3,
+      temp = temp,
+      N       = POLYNUM,
+      lattice = k.water.size,
+      sigma   = SIGMA,
+      p2p1    = p2p1
+    )
+  }, error=function(e){
+    phi1 <- NA
+  }, warnings=function(w){
+  }, finally = {
+    phi1 <- ifelse(is.null(phi1), NA, phi1)
+  })
+  return(phi1)
+}
 simulate  <- function(){
   expt <- get_expt()
-  apply(as.matrix(expt), 1, function(x){
-    phi2 <- x[1]
-    phi3 <- x[2]
-    temp <- x[3]
-    initial_guesses <- phi2 + (1-phi2) * c(0.0001, 0.5)
-    phi1 <- NULL
-    tryCatch({
-      phi1 <- uniroot(
-        f = fn,
-        interval = initial_guesses,
-        phi2 = phi2,
-        phi3 = phi3,
-        temp = temp,
-        N       = POLYNUM,
-        lattice = k.water.size,
-        sigma   = SIGMA,
-        p2p1    = p2p1
-      )
-    }, error=function(e){
-      phi1 <- NA
-    }, warnings=function(w){
-    }, finally = {
-      phi1 <- ifelse(is.null(phi1), NA, phi1)
-    })
-    return(phi1)
-  }) ->
-    phi_dense
+  phi_dense <- apply(as.matrix(expt), 1, sim_)
   if(is.null(phi_dense) | 
      is.na(unique(phi_dense))){
     print('No fit found!')
@@ -129,4 +129,5 @@ simulate  <- function(){
       write.csv('simulated.csv', row.names = F)
   }
 }
-simulate()
+
+
