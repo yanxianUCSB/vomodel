@@ -27,9 +27,12 @@ gibbs     <- function(phi, temp, N, lattice, sigma, chi) {
   enthalpy_chi <- chi * (phi[1] + phi[2]) * phi[5]
   gibbs <- entropy + enthalpy + enthalpy_chi
 }
-d_gibbs   <- function(phi, temp, N, lattice, sigma, chi, p2p1) {
+d_gibbs   <- function(phi, temp, N, lattice, sigma, chi) {
+  p2p1 <- phi[2] / phi[1]
   d_entropy <-
-    1 / N[1] * log(phi[1]) + 1 / N[1] + (1 / N[2] * log(phi[2]) + 1 / N[2]) * p2p1
+    (1 / N[1] * log(phi[1]) + 1 / N[1]) + 
+    (1 / N[2] * log(phi[2]) + 1 / N[2]) * p2p1 +
+    (1 / N[5] * log(phi[5]) + 1 / N[5]) * (-(1 + p2p1))
   d_enthalpy <- 
     -1 * 3/2 * get_alpha(temp, lattice) * (sum(sigma * phi) ^ 0.5) * (sigma[1] + sigma[2] * p2p1)
   d_enthalpy_chi <- 
