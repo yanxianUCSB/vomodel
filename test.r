@@ -3,7 +3,7 @@ source('vomodel.r')
 library(dplyr)
 # Parameters --------------
 POLYNUM       <<- c(200, 3000,   1, 1, 1)
-SIGMA         <<- c(0, 0,   0, 0, 0)  # charge per monomer
+SIGMA         <<- c(11/207, .3, 1, 1, 0)  # charge per monomer
 SIZE          <<- c(1, 1, 1, 1, 1) * 0.31E-9  # m; Voorn Overbeek 1967
 # MW            <<- c(1, 1)
 MOLARRATIO    <<- c(3000,  10, 1, 1, 0)  # the polycation:polyanion and cation:anion molar ratio
@@ -220,7 +220,7 @@ test.fn <- function() {
   lattice <- 0.31E-9
   sigma <- SIGMA
   p2p1 <- p2p1
-  phi2s <- seq(1e-5, 0.4, 1e-3)
+  phi2s <- seq(1e-5, 0.3, 1e-3)
   phi2s %>% 
     sapply(function(phi2){
       fn(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1)
