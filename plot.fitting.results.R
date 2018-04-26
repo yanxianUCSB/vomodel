@@ -1,24 +1,5 @@
 library(ggplot2)
-library(dplyr)
-# data =========
-most.freq <- function(variable, n){
-  names(sort(table(variable),decreasing=TRUE)[1:n])
-}
-get.dataset <- function(path = 'results/'){
-  lapply(c('FH', 'FHVO', 'FHVOCR'), function(mod){
-    list(readRDS(paste0(path, mod, '_fit.rds')) %>% 
-      mutate(mod = mod, group = 'Fit'),
-    readRDS(paste0(path, mod, '.rds')) %>% 
-      mutate(mod = mod, group = 'Expt')) %>% 
-      bind_rows()
-  }) %>% bind_rows() %>% 
-    filter(
-      phi3 %in% most.freq(phi3, 2)
-    ) %>% 
-    mutate(
-      phi3 = paste("\u03d53 =", as.character(round(phi3 * 1000, 2)))
-    ) 
-}
+
 # Plotting -------------
 plot <- function(dataset){
   ggplot() +
