@@ -97,9 +97,9 @@ fn.cr        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
 # Data preparation ---------------
 # this part of code transform the experimental observations into volume fraction
 # and temperature in Kelvin
-get_expt  <- function() {
+get_expt  <- function(path_experiment = commandArgs(trailingOnly = T)[1]) {
   library(dplyr)
-  path_experiment <- '~/Desktop/dataset.csv'
+  # path_experiment <- '~/Desktop/dataset.csv'
   ds <- read.csv(path_experiment) %>% 
     mutate(
       phi1 = protein * 1E-6 * 207 / k.water.conc * 1000,  # k.water.conc in mol/m^3
