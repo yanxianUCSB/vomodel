@@ -226,7 +226,7 @@ simulate.fh <- function(){
   p2p1          <<- (POLYNUM[2] * MOLARRATIO[2] * SIZE[2]^3 ) /
     (POLYNUM[1] * MOLARRATIO[1] * SIZE[1]^3 )  # the volume fraction ratio between specie 1 and specie 2
   INITIAL_GUESS <<- c(0.1, 0.5)
-  simulate('FH')
+  simulate('results/FH')
 }
 simulate.fhvo <- function(){
   POLYNUM       <<- c(207, 2939,   1, 1, 1)
@@ -237,7 +237,7 @@ simulate.fhvo <- function(){
   p2p1          <<- (POLYNUM[2] * MOLARRATIO[2] * SIZE[2]^3 ) /
     (POLYNUM[1] * MOLARRATIO[1] * SIZE[1]^3 )  # the volume fraction ratio between specie 1 and specie 2
   INITIAL_GUESS <<- c(0.1, 0.5)
-  simulate('FHVO')
+  simulate('results/FHVO')
 }
 simulate.fhvocr <- function() {
   POLYNUM       <<- c(207, 2939,   1, 1, 1)
@@ -248,7 +248,7 @@ simulate.fhvocr <- function() {
   p2p1          <<- (POLYNUM[2] * MOLARRATIO[2] * SIZE[2]^3 ) /
     (POLYNUM[1] * MOLARRATIO[1] * SIZE[1]^3 )  # the volume fraction ratio between specie 1 and specie 2
   INITIAL_GUESS <<- c(0.1, 0.5)
-  simulate.cr('FHVOCR')
+  simulate.cr('results/FHVOCR')
 }
 # Launch -----
 simulate.fh()
