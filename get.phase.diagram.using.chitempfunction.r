@@ -56,7 +56,8 @@ find.root <- function(phi3, temp, N, lattice, sigma, p2p1, fn, chitemp) {
     phi3 = phi3, temp=temp, N=N, lattice=lattice, sigma=sigma, p2p1=p2p1, 
     chitemp=chitemp,
     method = 'Newton',
-    global = 'cline'
+    global = 'cline',
+    control = list(xtol = 1e-10, ftol = 1e-10)
   )
   roots$x
 } 
