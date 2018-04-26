@@ -48,48 +48,7 @@ d_gibbs   <- function(phi, temp, N, lattice, sigma, chi) {
   d_enthalpy_chi <- d_enthalpy_chi(phi, chi)
   d_gibbs        <- d_entropy + d_enthalpy + d_enthalpy_chi
 }  # passed
-get_chi   <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1) {
-  if(phi1 == phi2) stop(msg = 'phi == phi2 for get_chi!')
-  phi_1 <-
-    c(phi1, p2p1 * phi1, phi3, phi3, 1 - phi1 - p2p1 * phi1 - 2 * phi3)
-  phi_2 <-
-    c(phi2, p2p1 * phi2, phi3, phi3, 1 - phi2 - p2p1 * phi2 - 2 * phi3)
-  d_entropy_1 <- d_entropy(phi_1, N)
-  d_entropy_2 <- d_entropy(phi_2, N)
-  d_enthalpy_1 <- d_enthalpy(phi_1, temp, lattice, sigma)
-  d_enthalpy_2 <- d_enthalpy(phi_2, temp, lattice, sigma)
-  under_1 <- (phi_1[5]*(1 + p2p1) - phi_1[1]*(1+p2p1)^2)
-  under_2 <- (phi_2[5]*(1 + p2p1) - phi_2[1]*(1+p2p1)^2)
-  chi <-
-    ((d_entropy_1 - d_entropy_2) + (d_enthalpy_1 - d_enthalpy_2)) / 
-    (under_2 - under_1)
-  return(chi)
-}  # should be good
 sigma.cr <- function(sigma0, temp){
   sigma <- ke^2 / (kEr*kkB*temp)
   return(min(c(sigma, sigma0)))
-}
-# Fn --------------------
-#' fn = fn(x), here x=phi1, other parameters are known
-fn        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
-  chi <- get_chi(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1)
-  phi_1 <-
-    c(phi1, p2p1 * phi1, phi3, phi3, 1 - phi1 - p2p1 * phi1 - 2 * phi3)
-  phi_2 <-
-    c(phi2, p2p1 * phi2, phi3, phi3, 1 - phi2 - p2p1 * phi2 - 2 * phi3)
-  diff <- 
-    d_gibbs(phi_2, temp, N, lattice, sigma, chi) * (phi2 - phi1) -
-    gibbs(phi_2, temp, N, lattice, sigma, chi) +
-    gibbs(phi_1, temp, N, lattice, sigma, chi)
-}
-fn.cr        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
-  sigma[1] <- sigma.cr(sigma[1], temp)
-  sigma[2] <- sigma.cr(sigma[2], temp)
-  phi_1    <- c(phi1, p2p1 * phi1, phi3, phi3, 1 - phi1 - p2p1 * phi1 - 2 * phi3)
-  phi_2    <- c(phi2, p2p1 * phi2, phi3, phi3, 1 - phi2 - p2p1 * phi2 - 2 * phi3)
-  chi      <- get_chi(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1)
-  diff     <- 
-              d_gibbs(phi_2, temp, N, lattice, sigma, chi) * (phi2 - phi1) -
-              gibbs(phi_2, temp, N, lattice, sigma, chi) +
-              gibbs(phi_1, temp, N, lattice, sigma, chi)
 }
