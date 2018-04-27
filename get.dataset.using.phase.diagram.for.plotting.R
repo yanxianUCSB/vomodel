@@ -1,4 +1,12 @@
 library(dplyr)
+source('vomodel.R')
+# Converting to conc ========
+phi2conc <- function(.data){
+  .data %>% 
+    mutate(protein = phi1 * k.water.conc / 207 * 1000,
+           nacl = phi3 * k.water.conc * 2 - 20,
+           temp = temp - 273.15) 
+}
 # data =========
 most.freq <- function(variable, n){
   names(sort(table(variable),decreasing=TRUE)[1:n])
@@ -21,14 +29,14 @@ saveds_ <- function(dataset, filename){
 }
 save.dataset.FHVO <- function(path = 'results/'){
   get.dataset.FHVO(path) %>% 
-    select(phi1, phi3, temp, group, mod) %>% 
-    filter(phi3 %in% most.freq(phi3, 2)) %>% 
+    select(phi1, phi3, temp, group, mod) %>%
+    phi2conc() %>% 
     saveds_(paste0(path, 'FHVO_fit_plot'))
 }
 save.dataset <- function(path = 'results/'){
   get.dataset(path) %>% 
     select(phi1, phi3, temp, group, mod) %>% 
-    filter(phi3 %in% most.freq(phi3, 2)) %>% 
+    phi2conc() %>% 
     saveds_(paste0(path, '_fit_plot'))
 }
 save.dataset.FHVO('results/')

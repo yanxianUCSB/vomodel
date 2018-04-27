@@ -123,7 +123,7 @@ simulate <- function() {
   expt <- load.expt()
   chitempfunlist <- load.chitemp()
   # phi3s <- as.numeric(names(sort(table(expt$phi3),decreasing=TRUE)[1:2]))
-  phi3s <- seq(min(expt$phi3), max(expt$phi3), (max(expt$phi3)-min(expt$phi3))/10)
+  phi3s <- unique(expt$phi3)
   temps <- seq(min(expt$temp), max(expt$temp), (max(expt$temp)-min(expt$temp))/10)
   fh <- simulate.FH(phi3s, temps, chitempfunlist$FH) 
   write.csv(fh, 'results/FH_fit.csv', row.names = F)  
