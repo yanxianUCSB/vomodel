@@ -1,7 +1,11 @@
 library(ggplot2)
-
+library(dplyr)
+get.dataset <- function(){
+  readRDS('results/_fit_plot.rds') 
+}
 # Plotting -------------
 plot <- function(dataset){
+  dataset$phi3 <- as.character(dataset$phi3)
   ggplot() +
     geom_point(aes(x = phi1, y = temp, color = phi3), 
                data = dataset %>% filter(group == 'Expt')) +

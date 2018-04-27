@@ -1,4 +1,6 @@
+# source('get.chi.from.experiment.R')
 source('get.chitemp.function.r')
 source('get.phase.diagram.using.chitempfunction.r')
+source('get.phase.diagram.using.chitempfunction.temp.phi3.r')
 source('get.dataset.using.phase.diagram.for.plotting.R')
 source('plot.fitting.results.R')
