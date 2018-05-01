@@ -144,7 +144,7 @@ simulate.1.eg <- function(){
   eg <- ds[1,]
   chitempfun <- function(temp){return(eg$chi)}
   phi3s <- unique(ds$phi3)
-  phi3s <- seq(min(phi3s), max(phi3s), (max(phi3s)-min(phi3s))/100)
+  phi3s <- seq(0.1 * min(phi3s), 5.4*max(phi3s), (max(phi3s)-min(phi3s))/20)
   temps <- eg$temp
   fhvo <- simulate.FHVO(phi3s, temps, chitempfun)
   fhvo <- bind_rows(eg, fhvo)
