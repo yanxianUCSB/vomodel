@@ -136,13 +136,13 @@ simulate <- function() {
   write.csv(fhvocr, 'results/FHVOCR_fit.csv', row.names = F)  
   saveRDS(fhvocr, 'results/FHVOCR_fit.rds')
 }
-simulate()
+# simulate()
 # 1 example ======
 simulate.1.eg <- function(){
   INITIAL_GUESS <<- c(0.001, 0.35)
   ds <- readRDS('results/FHVO.rds')
-  eg <- ds[1,]
-  chitempfun <- function(temp){return(eg$chi)}
+  eg <- ds[c(21, 26),]
+  chitempfun <- function(temp){return(eg$chi[which(eg$temp == temp)])}
   phi3s <- unique(ds$phi3)
   phi3s <- seq(0.1 * min(phi3s), 5.4*max(phi3s), (max(phi3s)-min(phi3s))/20)
   temps <- eg$temp
