@@ -136,7 +136,7 @@ simulate <- function() {
   write.csv(fhvocr, 'results/FHVOCR_fit.csv', row.names = F)  
   saveRDS(fhvocr, 'results/FHVOCR_fit.rds')
 }
-# simulate()
+simulate()
 # 1 example ======
 simulate.1.eg <- function(){
   INITIAL_GUESS <<- c(0.001, 0.35)
