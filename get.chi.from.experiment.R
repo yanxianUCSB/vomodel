@@ -3,7 +3,19 @@
 #'       
 source('vomodel.R')
 # Fn --------------------
-#' fn = fn(x), here x=phi1, other parameters are known
+#' Get chi value from given constrains
+#' 
+#' A, B, C, D, E are five species defined in README
+#'
+#' @param phi1 A number. volume fraction of A in dilute phase
+#' @param phi2 A number. volume fractino of A in dense phase
+#' @param phi3 A number. volume fraction of C monovalent cation
+#' @param temp A number. temperature in Kelvin
+#' @param N    An integer vector of length 5. degree of polymerization
+#' @param lattice A number. length of lattice in meter
+#' @param sigma An numeric vector of length 5. charge density of five species 
+#' @param p2p1 A number. the volume fraction ratio between specie 1 and specie 2
+#' @return If inputs are valid, the output will be a length-one numeric vector.
 get_chi   <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1) {
   if(phi1 == phi2) stop(msg = 'phi == phi2 for get_chi!')
   phi_1 <-
@@ -21,6 +33,14 @@ get_chi   <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1) {
     (under_2 - under_1)
   return(chi)
 }  # should be good
+#' Phase separation function used for root finding
+#' 
+#' \eqn{fn(x) = \frac{\partial G}{\partial x} \times (x - x0) - (G(x0) - G(x))}
+#' 
+#' @inheritParams get_chi
+#'
+#' @return If inputs are valid, the output will be a length-one numeric vector
+#' @export
 fn        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
   chi <- get_chi(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1)
   phi_1 <-
