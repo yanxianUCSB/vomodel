@@ -36,16 +36,3 @@ get.chitemp.function.1salt <- function(file) {
   mod.chitemp <- mod.chitemp(chitemp$temp, chitemp$chi)
   return(fit.chitemp(mod.chitemp))
 }
-
-FH <- get.chitemp.function('FH')
-FHVO <- get.chitemp.function('FHVO')
-FHVO.1salt <- get.chitemp.function.1salt('FHVO')
-FHVOCR <- get.chitemp.function('FHVOCR')
-
-saveRDS(list(
-  FH=FH,
-  FHVO=FHVO,
-  FHVO.1salt=FHVO.1salt,
-  FHVOCR=FHVOCR
-), 'results/chi_temp_functions.rds')
-

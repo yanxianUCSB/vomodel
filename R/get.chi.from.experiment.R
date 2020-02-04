@@ -1,10 +1,9 @@
 #' This file contains scripts to fit experimental data with Flory Huggins Chi para.
 #'       The definition of gibbs free energy is contained at vomodel.R
-#'       
-source('vomodel.R')
+#'
 # Fn --------------------
 #' Get chi value from given constrains
-#' 
+#'
 #' A, B, C, D, E are five species defined in README
 #'
 #' @param phi1 A number. volume fraction of A in dilute phase
@@ -13,7 +12,7 @@ source('vomodel.R')
 #' @param temp A number. temperature in Kelvin
 #' @param N    An integer vector of length 5. degree of polymerization
 #' @param lattice A number. length of lattice in meter
-#' @param sigma An numeric vector of length 5. charge density of five species 
+#' @param sigma An numeric vector of length 5. charge density of five species
 #' @param p2p1 A number. the volume fraction ratio between specie 1 and specie 2
 #' @return If inputs are valid, the output will be a length-one numeric vector.
 get_chi   <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1) {
@@ -29,14 +28,14 @@ get_chi   <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1) {
   under_1 <- (phi_1[5]*(1 + p2p1) - phi_1[1]*(1+p2p1)^2)
   under_2 <- (phi_2[5]*(1 + p2p1) - phi_2[1]*(1+p2p1)^2)
   chi <-
-    ((d_entropy_1 - d_entropy_2) + (d_enthalpy_1 - d_enthalpy_2)) / 
+    ((d_entropy_1 - d_entropy_2) + (d_enthalpy_1 - d_enthalpy_2)) /
     (under_2 - under_1)
   return(chi)
 }  # should be good
 #' Phase separation function used for root finding
-#' 
+#'
 #' \eqn{fn(x) = \frac{\partial G}{\partial x} \times (x - x0) - (G(x0) - G(x))}
-#' 
+#'
 #' @inheritParams get_chi
 #'
 #' @return If inputs are valid, the output will be a length-one numeric vector
@@ -47,7 +46,7 @@ fn        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
     c(phi1, p2p1 * phi1, phi3, phi3, 1 - phi1 - p2p1 * phi1 - 2 * phi3)
   phi_2 <-
     c(phi2, p2p1 * phi2, phi3, phi3, 1 - phi2 - p2p1 * phi2 - 2 * phi3)
-  diff <- 
+  diff <-
     d_gibbs(phi_2, temp, N, lattice, sigma, chi) * (phi2 - phi1) -
     gibbs(phi_2, temp, N, lattice, sigma, chi) +
     gibbs(phi_1, temp, N, lattice, sigma, chi)
@@ -58,7 +57,7 @@ fn.cr        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
   phi_1    <- c(phi1, p2p1 * phi1, phi3, phi3, 1 - phi1 - p2p1 * phi1 - 2 * phi3)
   phi_2    <- c(phi2, p2p1 * phi2, phi3, phi3, 1 - phi2 - p2p1 * phi2 - 2 * phi3)
   chi      <- get_chi(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1)
-  diff     <- 
+  diff     <-
     d_gibbs(phi_2, temp, N, lattice, sigma, chi) * (phi2 - phi1) -
     gibbs(phi_2, temp, N, lattice, sigma, chi) +
     gibbs(phi_1, temp, N, lattice, sigma, chi)
@@ -69,14 +68,14 @@ fn.cr        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
 get_expt  <- function(path_experiment = commandArgs(trailingOnly = T)[1]) {
   library(dplyr)
   # path_experiment <- '~/Desktop/dataset.csv'
-  ds <- read.csv(path_experiment) %>% 
+  ds <- read.csv(path_experiment) %>%
     mutate(
       phi1 = protein * 1E-6 * 207 / k.water.conc * 1000,  # k.water.conc in mol/m^3
       phi3 = 0.5 * (nacl + 20) * 1E-3 / k.water.conc * 1000,  # 20 mM monovalent buffer salt
       temp = cloudpoint + 273.15
-    ) %>% 
-    select(phi1, phi3, temp) 
-  ds %>% 
+    ) %>%
+    select(phi1, phi3, temp)
+  ds %>%
     saveRDS('expt.rds')
   return(ds)
 }
@@ -112,24 +111,24 @@ sim_      <- function(x){
 simulate  <- function(output.filename.no.ext = 'simulated'){
   # get_chi(...) for dplyr::mutate
   get_chi_ <- function(phi1, phi2, phi3, temp){
-    seq(1, length(phi1), 1) %>% 
+    seq(1, length(phi1), 1) %>%
       sapply(function(i){
-        get_chi(phi1 = phi1[i], phi2 = phi2[i], phi3 = phi3[i], temp = temp[i], 
+        get_chi(phi1 = phi1[i], phi2 = phi2[i], phi3 = phi3[i], temp = temp[i],
                 N = POLYNUM, lattice = k.water.size, sigma = SIGMA, p2p1 = p2p1)
       })
   }
   expt <- get_expt()
   phi_dense <- apply(as.matrix(expt), 1, sim_)
-  if(is.null(phi_dense) | 
+  if(is.null(phi_dense) |
      is.na(unique(phi_dense))){
     print('No fit found!')
   } else {
-    expt %>% 
-      mutate(phi2 = phi_dense) %>% 
+    expt %>%
+      mutate(phi2 = phi_dense) %>%
       mutate(chi = get_chi_(phi1, phi2, phi3, temp)) -> output
-    output %>% 
+    output %>%
       write.csv(paste0(output.filename.no.ext, '.csv'), row.names = F)
-    output %>% 
+    output %>%
       saveRDS(paste0(output.filename.no.ext, '.rds'))
   }
 }
@@ -164,24 +163,24 @@ sim.cr_      <- function(x){
 simulate.cr  <- function(output.filename.no.ext = 'simulated'){
   # get_chi(...) for dplyr::mutate
   get_chi_ <- function(phi1, phi2, phi3, temp){
-    seq(1, length(phi1), 1) %>% 
+    seq(1, length(phi1), 1) %>%
       sapply(function(i){
-        get_chi(phi1 = phi1[i], phi2 = phi2[i], phi3 = phi3[i], temp = temp[i], 
+        get_chi(phi1 = phi1[i], phi2 = phi2[i], phi3 = phi3[i], temp = temp[i],
                 N = POLYNUM, lattice = k.water.size, sigma = SIGMA, p2p1 = p2p1)
       })
   }
   expt <- get_expt()
   phi_dense <- apply(as.matrix(expt), 1, sim.cr_)
-  if(is.null(phi_dense) | 
+  if(is.null(phi_dense) |
      is.na(unique(phi_dense))){
     print('No fit found!')
   } else {
-    expt %>% 
-      mutate(phi2 = phi_dense) %>% 
+    expt %>%
+      mutate(phi2 = phi_dense) %>%
       mutate(chi = get_chi_(phi1, phi2, phi3, temp)) -> output
-    output %>% 
+    output %>%
       write.csv(paste0(output.filename.no.ext, '.csv'), row.names = F)
-    output %>% 
+    output %>%
       saveRDS(paste0(output.filename.no.ext, '.rds'))
   }
 }
@@ -219,7 +218,4 @@ simulate.fhvocr <- function() {
   INITIAL_GUESS <<- c(0.1, 0.5)
   simulate.cr('results/FHVOCR')
 }
-# Launch -----
-simulate.fh()
-simulate.fhvo()
-simulate.fhvocr()
+
