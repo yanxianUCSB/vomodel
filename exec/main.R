@@ -1,3 +1,22 @@
+# Data preparation ---------------
+# this part of code transform the experimental observations into volume fraction
+# and temperature in Kelvin
+get_expt  <- function(path_experiment = commandArgs(trailingOnly = T)[1]) {
+    library(dplyr)
+    # path_experiment <- '~/Desktop/dataset.csv'
+    ds <- read.csv(path_experiment) %>%
+        mutate(
+            phi1 = protein * 1E-6 * 207 / k.water.conc * 1000,  # k.water.conc in mol/m^3
+            phi3 = 0.5 * (nacl + 20) * 1E-3 / k.water.conc * 1000,  # 20 mM monovalent buffer salt
+            temp = cloudpoint + 273.15
+        ) %>%
+        select(phi1, phi3, temp)
+    ds %>%
+        saveRDS('expt.rds')
+    return(ds)
+}
+
+
 # Launch get.chi.from.experiment.R-----
 source('R/get.chi.from.experiment.R')
 simulate.fh()

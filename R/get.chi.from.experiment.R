@@ -1,6 +1,7 @@
-#' This file contains scripts to fit experimental data with Flory Huggins Chi para.
-#'       The definition of gibbs free energy is contained at vomodel.R
-#'
+# This file contains scripts to fit experimental data with Flory Huggins Chi para.
+#       The definition of gibbs free energy is contained at vomodel.R
+#
+
 # Fn --------------------
 #' Get chi value from given constrains
 #'
@@ -9,12 +10,11 @@
 #' @param phi1 A number. volume fraction of A in dilute phase
 #' @param phi2 A number. volume fractino of A in dense phase
 #' @param phi3 A number. volume fraction of C monovalent cation
-#' @param temp A number. temperature in Kelvin
-#' @param N    An integer vector of length 5. degree of polymerization
-#' @param lattice A number. length of lattice in meter
-#' @param sigma An numeric vector of length 5. charge density of five species
 #' @param p2p1 A number. the volume fraction ratio between specie 1 and specie 2
+#' @inheritParams gibbs
+#'
 #' @return If inputs are valid, the output will be a length-one numeric vector.
+#' @export
 get_chi   <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1) {
   if(phi1 == phi2) stop(msg = 'phi == phi2 for get_chi!')
   phi_1 <-
@@ -51,6 +51,14 @@ fn        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
     gibbs(phi_2, temp, N, lattice, sigma, chi) +
     gibbs(phi_1, temp, N, lattice, sigma, chi)
 }
+#' Phase separation function (Counter-ion Release) used for root finding
+#'
+#' @inheritParams get_chi
+#'
+#' @return
+#' @export
+#'
+#' @examples
 fn.cr        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
   sigma[1] <- sigma.cr(sigma[1], temp)
   sigma[2] <- sigma.cr(sigma[2], temp)
@@ -62,25 +70,18 @@ fn.cr        <- function(phi1, phi2, phi3, temp, N, lattice, sigma, p2p1){
     gibbs(phi_2, temp, N, lattice, sigma, chi) +
     gibbs(phi_1, temp, N, lattice, sigma, chi)
 }
-# Data preparation ---------------
-# this part of code transform the experimental observations into volume fraction
-# and temperature in Kelvin
-get_expt  <- function(path_experiment = commandArgs(trailingOnly = T)[1]) {
-  library(dplyr)
-  # path_experiment <- '~/Desktop/dataset.csv'
-  ds <- read.csv(path_experiment) %>%
-    mutate(
-      phi1 = protein * 1E-6 * 207 / k.water.conc * 1000,  # k.water.conc in mol/m^3
-      phi3 = 0.5 * (nacl + 20) * 1E-3 / k.water.conc * 1000,  # 20 mM monovalent buffer salt
-      temp = cloudpoint + 273.15
-    ) %>%
-    select(phi1, phi3, temp)
-  ds %>%
-    saveRDS('expt.rds')
-  return(ds)
-}
+
 # Simulate ------------------
-sim_      <- function(x){
+#' Get Dense Phase \phi from Dilute Phase
+#'
+#' Find \phi1 given \phi2 and \phi3
+#'
+#' @param x A numberic vector of length 3. \phi2, \phi3 and T
+#'
+#' @return If root is found, the output will be a number \phi1.
+#'         Otherwise it will be NA
+#'
+sim_      <- function(x, root_fn = fn){
   x <- as.numeric(x)
   phi2 <- x[1]
   phi3 <- x[2]
@@ -89,7 +90,7 @@ sim_      <- function(x){
   phi1 <- NULL
   tryCatch({
     root <- uniroot(
-      f = fn,
+      f = root_fn,
       interval = initial_guesses,
       phi2 = phi2,
       phi3 = phi3,
@@ -108,7 +109,19 @@ sim_      <- function(x){
   })
   return(phi1)
 }
-simulate  <- function(output.filename.no.ext = 'simulated'){
+#' Simulate from Experiment
+#'
+#' @param output.filename.no.ext A string.
+#' @param root_fn A callable function. Either fn or fn.cr.
+#' @param expt A data.frame. Default is get
+#' @param bWrite A boolean. Whether to write results to files or not.
+#'
+#' @return
+#'
+simulate  <- function(output.filename.no.ext = 'simulated',
+                      root_fn = fn,
+                      expt = get_expt(),
+                      bWrite = TRUE){
   # get_chi(...) for dplyr::mutate
   get_chi_ <- function(phi1, phi2, phi3, temp){
     seq(1, length(phi1), 1) %>%
@@ -118,74 +131,34 @@ simulate  <- function(output.filename.no.ext = 'simulated'){
       })
   }
   expt <- get_expt()
-  phi_dense <- apply(as.matrix(expt), 1, sim_)
+  phi_dense <- apply(as.matrix(expt), 1, function(x) sim_(x, root_fn))
   if(is.null(phi_dense) |
      is.na(unique(phi_dense))){
     print('No fit found!')
   } else {
-    expt %>%
+    output <- expt %>%
       mutate(phi2 = phi_dense) %>%
-      mutate(chi = get_chi_(phi1, phi2, phi3, temp)) -> output
-    output %>%
-      write.csv(paste0(output.filename.no.ext, '.csv'), row.names = F)
-    output %>%
-      saveRDS(paste0(output.filename.no.ext, '.rds'))
-  }
-}
-sim.cr_      <- function(x){
-  x <- as.numeric(x)
-  phi2 <- x[1]
-  phi3 <- x[2]
-  temp <- x[3]
-  initial_guesses <- INITIAL_GUESS
-  phi1 <- NULL
-  tryCatch({
-    root <- uniroot(
-      f = fn.cr,
-      interval = initial_guesses,
-      phi2 = phi2,
-      phi3 = phi3,
-      temp = temp,
-      N       = POLYNUM,
-      lattice = k.water.size,
-      sigma   = SIGMA,
-      p2p1    = p2p1
-    )
-    phi1 <- root$root
-  }, error=function(e){
-    phi1 <- NA
-  }, warnings=function(w){
-  }, finally = {
-    phi1 <- ifelse(is.null(phi1), NA, phi1)
-  })
-  return(phi1)
-}
-simulate.cr  <- function(output.filename.no.ext = 'simulated'){
-  # get_chi(...) for dplyr::mutate
-  get_chi_ <- function(phi1, phi2, phi3, temp){
-    seq(1, length(phi1), 1) %>%
-      sapply(function(i){
-        get_chi(phi1 = phi1[i], phi2 = phi2[i], phi3 = phi3[i], temp = temp[i],
-                N = POLYNUM, lattice = k.water.size, sigma = SIGMA, p2p1 = p2p1)
-      })
-  }
-  expt <- get_expt()
-  phi_dense <- apply(as.matrix(expt), 1, sim.cr_)
-  if(is.null(phi_dense) |
-     is.na(unique(phi_dense))){
-    print('No fit found!')
-  } else {
-    expt %>%
-      mutate(phi2 = phi_dense) %>%
-      mutate(chi = get_chi_(phi1, phi2, phi3, temp)) -> output
-    output %>%
-      write.csv(paste0(output.filename.no.ext, '.csv'), row.names = F)
-    output %>%
-      saveRDS(paste0(output.filename.no.ext, '.rds'))
+      mutate(chi = get_chi_(phi1, phi2, phi3, temp))
+
+    if (bWrite) {
+        output %>%
+            write.csv(paste0(output.filename.no.ext, '.csv'), row.names = F)
+        output %>%
+            saveRDS(paste0(output.filename.no.ext, '.rds'))
+    }
+
+    return(output)
   }
 }
 # Modeling ------------
-simulate.fh <- function(){
+#' Flory Huggin Modeling
+#'
+#' @inheritParams simulate
+#'
+#' @return A data.frame.
+#' @export
+#'
+simulate.fh <- function(expt = get_expt()){
   POLYNUM       <<- c(207, 2939,   1, 1, 1)
   SIGMA         <<- c(0, 0,   0, 0, 0)  # charge per monomer
   SIZE          <<- c(1, 1, 1, 1, 1) * 0.31E-9  # m; Voorn Overbeek 1967
@@ -196,7 +169,14 @@ simulate.fh <- function(){
   INITIAL_GUESS <<- c(0.1, 0.5)
   simulate('results/FH')
 }
-simulate.fhvo <- function(){
+#' Voorn-Overbeek Flory Huggins Modeling
+#'
+#' @inheritParams simulate
+#'
+#' @return A data.frame.
+#' @export
+#'
+simulate.fhvo <- function(expt = get_expt()){
   POLYNUM       <<- c(207, 2939,   1, 1, 1)
   SIGMA         <<- c(11 / 207, 1,   1, 1, 0)  # charge per monomer
   SIZE          <<- c(1, 1, 1, 1, 1) * 0.31E-9  # m; Voorn Overbeek 1967
@@ -205,9 +185,16 @@ simulate.fhvo <- function(){
   p2p1          <<- (POLYNUM[2] * MOLARRATIO[2] * SIZE[2]^3 ) /
     (POLYNUM[1] * MOLARRATIO[1] * SIZE[1]^3 )  # the volume fraction ratio between specie 1 and specie 2
   INITIAL_GUESS <<- c(0.1, 0.5)
-  simulate('results/FHVO')
+  simulate('results/FHVO', root_fn = fn, expt = get_expt())
 }
-simulate.fhvocr <- function() {
+#' Voorn-Overbeek Flory Huggins Counter-ion Release Modeling
+#'
+#' @inheritParams simulate
+#'
+#' @return A data.frame.
+#' @export
+#'
+simulate.fhvocr <- function(expt = get_expt()) {
   POLYNUM       <<- c(207, 2939,   1, 1, 1)
   SIGMA         <<- c(11 / 207, 1,   1, 1, 0)  # charge per monomer
   SIZE          <<- c(1, 1, 1, 1, 1) * 0.31E-9  # m; Voorn Overbeek 1967
@@ -216,6 +203,6 @@ simulate.fhvocr <- function() {
   p2p1          <<- (POLYNUM[2] * MOLARRATIO[2] * SIZE[2]^3 ) /
     (POLYNUM[1] * MOLARRATIO[1] * SIZE[1]^3 )  # the volume fraction ratio between specie 1 and specie 2
   INITIAL_GUESS <<- c(0.1, 0.5)
-  simulate.cr('results/FHVOCR')
+  simulate('results/FHVOCR', root_fn = fn.cr, expt = get_expt())
 }
 
